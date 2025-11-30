@@ -23,7 +23,7 @@ async function hasUsers(request: NextRequest) {
   return Boolean(payload.hasUsers)
 }
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (isExcluded(pathname)) {
