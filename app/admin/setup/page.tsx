@@ -15,6 +15,7 @@ const steps = [
 ];
 
 type AdminDetails = {
+  username: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -29,6 +30,7 @@ export default function AdminSetupPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [data, setData] = useState<WizardData>({
     admin: {
+      username: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -38,8 +40,10 @@ export default function AdminSetupPage() {
 
   const canProceed = useMemo(() => {
     if (currentStep === 1) {
-      const { email, password, confirmPassword } = data.admin;
-      return Boolean(email && password && confirmPassword && password === confirmPassword);
+      const { username, password, confirmPassword } = data.admin;
+      return Boolean(
+        username.trim() && password && confirmPassword && password === confirmPassword,
+      );
     }
 
     if (currentStep === 2) {
@@ -106,7 +110,17 @@ export default function AdminSetupPage() {
         return (
           <div className="space-y-6">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                autoComplete="username"
+                value={data.admin.username}
+                onChange={(event) => updateAdminField("username", event.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">Email (optional)</Label>
               <Input
                 id="email"
                 type="email"
@@ -187,6 +201,10 @@ export default function AdminSetupPage() {
             <div>
               <h3 className="text-lg font-semibold">Admin Account</h3>
               <dl className="mt-2 space-y-1 text-sm text-muted-foreground">
+                <div className="flex gap-2">
+                  <dt className="font-medium text-foreground">Username:</dt>
+                  <dd>{data.admin.username || "Not provided"}</dd>
+                </div>
                 <div className="flex gap-2">
                   <dt className="font-medium text-foreground">Email:</dt>
                   <dd>{data.admin.email || "Not provided"}</dd>
