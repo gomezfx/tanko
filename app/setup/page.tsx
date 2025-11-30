@@ -238,7 +238,7 @@ export default function AdminSetupPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto max-w-3xl space-y-6 py-10">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Admin Setup Wizard</h1>

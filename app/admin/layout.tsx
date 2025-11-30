@@ -20,9 +20,6 @@ export default function AdminLayout({
             <Button asChild variant="ghost" className="justify-start">
               <Link href="/admin/settings">Settings</Link>
             </Button>
-            <Button asChild variant="ghost" className="justify-start">
-              <Link href="/admin/setup">Run Setup</Link>
-            </Button>
           </nav>
         </div>
       </aside>

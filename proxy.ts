@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
-const EXCLUDED_PATHS = ["/_next", "/admin/setup", "/api/setup", "/favicon"]
+const EXCLUDED_PATHS = ["/_next", "/setup", "/api/setup", "/favicon"]
 
 function isExcluded(pathname: string) {
   return EXCLUDED_PATHS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}`))
@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
 
   if (!userExists) {
     const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = "/admin/setup"
+    redirectUrl.pathname = "/setup"
     redirectUrl.search = ""
     return NextResponse.redirect(redirectUrl)
   }
