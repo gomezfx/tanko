@@ -75,7 +75,6 @@ export default function AdminSetupPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPath, setSelectedPath] = useState("");
-  const [currentParent, setCurrentParent] = useState<string | null>(null);
   const [rootNode, setRootNode] = useState<DirectoryTreeNode | null>(null);
   const [isLoadingPaths, setIsLoadingPaths] = useState(false);
   const [browseError, setBrowseError] = useState<string | null>(null);
@@ -156,8 +155,7 @@ export default function AdminSetupPage() {
     }));
   };
 
-  const applyListingToTree = useCallback(
-    (resolvedPath: string, directories: DirectoryTreeNode[], parent: string | null) => {
+  const applyListingToTree = useCallback((resolvedPath: string, directories: DirectoryTreeNode[]) => {
       setRootNode((previous) => {
         if (!previous) {
           return {
@@ -180,7 +178,6 @@ export default function AdminSetupPage() {
       });
 
       setSelectedPath(resolvedPath);
-      setCurrentParent(parent ?? null);
     },
     [],
   );
@@ -203,7 +200,7 @@ export default function AdminSetupPage() {
         const body = await response.json();
         const resolvedPath = body.path ?? "";
         const directories = Array.isArray(body.directories) ? buildNodes(body.directories) : [];
-        applyListingToTree(resolvedPath, directories, body.parent ?? null);
+        applyListingToTree(resolvedPath, directories);
       } catch (requestError) {
         const message =
           requestError instanceof Error
@@ -361,30 +358,15 @@ export default function AdminSetupPage() {
           <div className="space-y-4">
             <p className="text-muted-foreground">
               Browse the filesystem to choose one or more library folders. Expand directories
-              to navigate, or use Go Up to move to a parent. Select This Folder will add the
-              current path to your library list.
+              to navigate and select a folder to add it to your library list.
             </p>
             <Card>
               <CardHeader>
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Current path</p>
-                    <p className="break-all font-semibold text-foreground">
-                      {selectedPath || "Loading..."}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!currentParent || isLoadingPaths}
-                    onClick={() => {
-                      if (currentParent) {
-                        loadDirectory(currentParent);
-                      }
-                    }}
-                  >
-                    Go Up
-                  </Button>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Current path</p>
+                  <p className="break-all font-semibold text-foreground">
+                    {selectedPath || "Loading..."}
+                  </p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -402,7 +384,7 @@ export default function AdminSetupPage() {
                 </div>
                 <div className="flex justify-end">
                   <Button type="button" onClick={() => addLibraryPath(selectedPath)} disabled={!selectedPath}>
-                    Select This Folder
+                    Select Folder
                   </Button>
                 </div>
               </CardContent>

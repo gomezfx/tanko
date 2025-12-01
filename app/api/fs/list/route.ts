@@ -44,6 +44,10 @@ export async function GET(request: Request) {
         continue;
       }
 
+      if (entry.name.startsWith(".")) {
+        continue;
+      }
+
       const fullPath = path.join(resolvedPath, entry.name);
       directories.push({ name: entry.name, fullPath });
     }
