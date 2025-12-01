@@ -14,6 +14,7 @@ model User {
   passwordHash String
   role         String   @default("admin")
   createdAt    DateTime @default(now())
+  avatarUrl    String?
 
   sessions Session[]
 }

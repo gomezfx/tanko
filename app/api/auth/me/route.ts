@@ -11,5 +11,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "Not authenticated" }, { status: 401 })
   }
 
-  return NextResponse.json({ id: user.id, username: user.username, role: user.role })
+  return NextResponse.json({
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    avatarUrl: user.avatarUrl,
+  })
 }
