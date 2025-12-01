@@ -132,11 +132,15 @@ type DialogCloseProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   asChild?: boolean
 }
 
+type DialogCloseChildProps = {
+  onClick?: React.MouseEventHandler<HTMLElement>
+}
+
 const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(
   ({ children, asChild = false, ...props }, ref) => {
     const { onOpenChange } = useDialogContext()
 
-    if (asChild && React.isValidElement(children)) {
+    if (asChild && React.isValidElement<DialogCloseChildProps>(children)) {
       return React.cloneElement(children, {
         onClick: (event: React.MouseEvent<HTMLElement>) => {
           if (typeof children.props.onClick === "function") {
