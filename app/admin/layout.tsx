@@ -14,13 +14,13 @@ export default function AdminLayout({
         <div>
           <p className="text-sm font-semibold text-muted-foreground">Navigation</p>
           <nav className="mt-3 flex flex-col gap-2">
-            <Button asChild variant="ghost" className="justify-start">
+            <Button asChild variant="ghost" className="justify-start cursor-pointer">
               <Link href="/admin">Dashboard</Link>
             </Button>
-            <Button asChild variant="ghost" className="justify-start">
+            <Button asChild variant="ghost" className="justify-start cursor-pointer">
               <Link href="/admin/manga">Manga</Link>
             </Button>
-            <Button asChild variant="ghost" className="justify-start">
+            <Button asChild variant="ghost" className="justify-start cursor-pointer">
               <Link href="/admin/settings">Settings</Link>
             </Button>
           </nav>

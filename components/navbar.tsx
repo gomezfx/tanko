@@ -124,8 +124,8 @@ export function Navbar() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-30 border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="text-lg font-semibold">
+      <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
+        <Link href="/" className="text-lg font-semibold cursor-pointer">
           Tanko
         </Link>
         <div className="flex items-center gap-3">
@@ -137,8 +137,8 @@ export function Navbar() {
           )}
           {user && (
             <DropdownMenu>
-              <DropdownMenuTrigger className="outline-none">
-                <Avatar>
+            <DropdownMenuTrigger className="outline-none cursor-pointer">
+                <Avatar className="h-16 w-16">
                   {user.avatarUrl ? (
                     <AvatarImage src={user.avatarUrl} alt={user.username} />
                   ) : null}
@@ -148,13 +148,17 @@ export function Navbar() {
                 </Avatar>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => (window.location.href = "/profile")}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => (window.location.href = "/profile")}>
                   <span className="font-semibold">{user.username}</span>
                 </DropdownMenuItem>
                 {user.role === "admin" && (
-                  <DropdownMenuItem onClick={() => (window.location.href = "/admin")}>Admin</DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => (window.location.href = "/admin")}>
+                    Admin
+                  </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
+                  Log out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
