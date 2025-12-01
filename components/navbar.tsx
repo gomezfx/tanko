@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -124,7 +125,9 @@ export function Navbar() {
   return (
     <header className="fixed inset-x-0 top-0 z-30 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <div className="text-lg font-semibold">Tanko</div>
+        <Link href="/" className="text-lg font-semibold">
+          Tanko
+        </Link>
         <div className="flex items-center gap-3">
           {!user && (
             <>
