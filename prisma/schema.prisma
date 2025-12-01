@@ -14,6 +14,8 @@ model User {
   passwordHash String
   role         String   @default("admin")
   createdAt    DateTime @default(now())
+
+  sessions Session[]
 }
 
 model LibraryPath {
@@ -35,4 +37,14 @@ model Volume {
   libraryPathId Int?
 
   libraryPath LibraryPath? @relation(fields: [libraryPathId], references: [id])
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id])
 }
