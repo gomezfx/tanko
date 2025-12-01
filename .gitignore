@@ -41,4 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 data/manga.db
+data/
+node-compile-cache/
 

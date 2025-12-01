@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,6 +16,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { CurrentUser } from "@/hooks/use-current-user"
 import { useCurrentUser } from "@/hooks/use-current-user"
 
 function LoginDialog({
@@ -25,7 +26,7 @@ function LoginDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: (user: { id: number; username: string; role: string }) => void
+  onSuccess: (user: CurrentUser) => void
 }) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
@@ -135,12 +136,18 @@ export function Navbar() {
             <DropdownMenu>
               <DropdownMenuTrigger className="outline-none">
                 <Avatar>
+                  {user.avatarUrl ? (
+                    <AvatarImage src={user.avatarUrl} alt={user.username} />
+                  ) : null}
                   <AvatarFallback className="bg-primary/10 text-primary">
                     {user.username.slice(0, 1).toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => (window.location.href = "/profile")}>
+                  {user.username}
+                </DropdownMenuItem>
                 {user.role === "admin" && (
                   <DropdownMenuItem onClick={() => (window.location.href = "/admin")}>Admin</DropdownMenuItem>
                 )}
