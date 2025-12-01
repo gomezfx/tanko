@@ -95,7 +95,7 @@ function LoginDialog({
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
-            <DialogClose>
+            <DialogClose asChild>
               <Button type="button" variant="ghost">
                 Cancel
               </Button>
