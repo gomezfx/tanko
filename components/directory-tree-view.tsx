@@ -83,7 +83,6 @@ const TreeRow: React.FC<{
         >
           <Folder className="h-4 w-4 text-muted-foreground" />
           <span className="truncate font-medium">{node.name || node.fullPath}</span>
-          <span className="truncate text-xs text-muted-foreground">{node.fullPath}</span>
         </button>
       </div>
       {node.isExpanded && node.children.length > 0 && (
@@ -125,20 +124,6 @@ export const DirectoryTreeView: React.FC<DirectoryTreeProps> = ({
       />
       {root.isExpanded && root.children.length === 0 && (
         <p className="pl-10 text-xs text-muted-foreground">No subdirectories.</p>
-      )}
-      {root.isExpanded && root.children.length > 0 && (
-        <div className="pl-4">
-          {root.children.map((child) => (
-            <TreeRow
-              key={child.fullPath}
-              node={child}
-              depth={1}
-              selectedPath={selectedPath}
-              onToggle={onToggle}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
       )}
     </div>
   );
