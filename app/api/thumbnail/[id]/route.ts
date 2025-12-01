@@ -6,8 +6,10 @@ export const runtime = "nodejs";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id?: string } }
+  context: { params: Promise<{ id?: string }> }
 ) {
-  return getThumbnailResponse(params.id ?? null);
+  const { id } = await context.params;
+
+  return getThumbnailResponse(id ?? null);
 }
 
