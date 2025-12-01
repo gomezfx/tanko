@@ -36,7 +36,7 @@ export default async function HomePage() {
                   <div className="relative aspect-[2/3] w-full bg-muted">
                     {volume.thumbnailPath ? (
                       <Image
-                        src={`/api/thumbnail?id=${volume.id}`}
+                        src={`/api/thumbnail/${volume.id}`}
                         alt={volume.title}
                         fill
                         className="object-cover"
