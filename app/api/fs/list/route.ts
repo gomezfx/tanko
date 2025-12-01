@@ -1,9 +1,9 @@
-import path from "path"
-import { promises as fs } from "fs"
-import { NextResponse } from "next/server"
+import path from "path";
+import { promises as fs } from "fs";
+import { NextResponse } from "next/server";
 
-export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function getDefaultRoot() {
   if (process.platform === "win32") {
@@ -36,19 +36,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "Path is not a directory." }, { status: 400 });
     }
 
-    const dirents = await fs.readdir(resolvedPath);
+    const dirents = await fs.readdir(resolvedPath, { withFileTypes: true });
     const directories: Array<{ name: string; fullPath: string }> = [];
 
     for (const entry of dirents) {
-      const fullPath = path.join(resolvedPath, entry);
-      try {
-        const entryStats = await fs.stat(fullPath);
-        if (entryStats.isDirectory()) {
-          directories.push({ name: entry, fullPath });
-        }
-      } catch (error) {
-        console.warn(`Unable to stat ${fullPath}:`, error);
+      if (!entry.isDirectory()) {
+        continue;
       }
+
+      const fullPath = path.join(resolvedPath, entry.name);
+      directories.push({ name: entry.name, fullPath });
     }
 
     const parent = await getParentPath(resolvedPath);

@@ -4,6 +4,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { DirectoryTreeView, type DirectoryTreeNode } from "@/components/directory-tree-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,9 +24,49 @@ type WizardData = {
   libraryPaths: string[];
 };
 
-type DirectoryEntry = {
+type DirectoryListingEntry = {
   name: string;
   fullPath: string;
+};
+
+const buildNodes = (entries: DirectoryListingEntry[]): DirectoryTreeNode[] =>
+  entries.map((entry) => ({
+    name: entry.name,
+    fullPath: entry.fullPath,
+    children: [],
+    isExpanded: false,
+    isLoading: false,
+    hasLoaded: false,
+  }));
+
+const updateNodeByPath = (
+  node: DirectoryTreeNode,
+  targetPath: string,
+  updater: (node: DirectoryTreeNode) => DirectoryTreeNode,
+): DirectoryTreeNode => {
+  if (node.fullPath === targetPath) {
+    return updater(node);
+  }
+
+  return {
+    ...node,
+    children: node.children.map((child) => updateNodeByPath(child, targetPath, updater)),
+  };
+};
+
+const findNodeByPath = (
+  node: DirectoryTreeNode | null,
+  targetPath: string,
+): DirectoryTreeNode | null => {
+  if (!node) return null;
+  if (node.fullPath === targetPath) return node;
+
+  for (const child of node.children) {
+    const found = findNodeByPath(child, targetPath);
+    if (found) return found;
+  }
+
+  return null;
 };
 
 export default function AdminSetupPage() {
@@ -33,9 +74,9 @@ export default function AdminSetupPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentPath, setCurrentPath] = useState("");
-  const [parentPath, setParentPath] = useState<string | null>(null);
-  const [directories, setDirectories] = useState<DirectoryEntry[]>([]);
+  const [selectedPath, setSelectedPath] = useState("");
+  const [currentParent, setCurrentParent] = useState<string | null>(null);
+  const [rootNode, setRootNode] = useState<DirectoryTreeNode | null>(null);
   const [isLoadingPaths, setIsLoadingPaths] = useState(false);
   const [browseError, setBrowseError] = useState<string | null>(null);
   const [hasLoadedInitialPath, setHasLoadedInitialPath] = useState(false);
@@ -90,7 +131,7 @@ export default function AdminSetupPage() {
   };
 
   const addLibraryPath = (path?: string) => {
-    const trimmedPath = (path ?? currentPath).trim();
+    const trimmedPath = (path ?? selectedPath).trim();
 
     if (!trimmedPath) {
       setError("Select a folder to continue.");
@@ -115,6 +156,35 @@ export default function AdminSetupPage() {
     }));
   };
 
+  const applyListingToTree = useCallback(
+    (resolvedPath: string, directories: DirectoryTreeNode[], parent: string | null) => {
+      setRootNode((previous) => {
+        if (!previous) {
+          return {
+            name: resolvedPath || "Root",
+            fullPath: resolvedPath,
+            children: directories,
+            isExpanded: true,
+            isLoading: false,
+            hasLoaded: true,
+          };
+        }
+
+        return updateNodeByPath(previous, resolvedPath, (node) => ({
+          ...node,
+          isExpanded: true,
+          isLoading: false,
+          hasLoaded: true,
+          children: directories,
+        }));
+      });
+
+      setSelectedPath(resolvedPath);
+      setCurrentParent(parent ?? null);
+    },
+    [],
+  );
+
   const loadDirectory = useCallback(
     async (targetPath?: string) => {
       setIsLoadingPaths(true);
@@ -131,9 +201,9 @@ export default function AdminSetupPage() {
         }
 
         const body = await response.json();
-        setCurrentPath(body.path ?? "");
-        setParentPath(body.parent ?? null);
-        setDirectories(Array.isArray(body.directories) ? body.directories : []);
+        const resolvedPath = body.path ?? "";
+        const directories = Array.isArray(body.directories) ? buildNodes(body.directories) : [];
+        applyListingToTree(resolvedPath, directories, body.parent ?? null);
       } catch (requestError) {
         const message =
           requestError instanceof Error
@@ -144,8 +214,41 @@ export default function AdminSetupPage() {
         setIsLoadingPaths(false);
       }
     },
-    [],
+    [applyListingToTree],
   );
+
+  const handleToggleNode = async (path: string) => {
+    const existing = findNodeByPath(rootNode, path);
+    if (!existing) return;
+
+    if (existing.hasLoaded) {
+      setRootNode((previous) =>
+        previous ? updateNodeByPath(previous, path, (node) => ({
+          ...node,
+          isExpanded: !node.isExpanded,
+        })) : previous,
+      );
+      return;
+    }
+
+    setRootNode((previous) =>
+      previous
+        ? updateNodeByPath(previous, path, (node) => ({ ...node, isLoading: true }))
+        : previous,
+    );
+
+    await loadDirectory(path);
+
+    setRootNode((previous) =>
+      previous
+        ? updateNodeByPath(previous, path, (node) => ({ ...node, isLoading: false }))
+        : previous,
+    );
+  };
+
+  const handleSelectPath = async (path: string) => {
+    await loadDirectory(path);
+  };
 
   useEffect(() => {
     if (currentStep === 2 && !hasLoadedInitialPath) {
@@ -257,8 +360,8 @@ export default function AdminSetupPage() {
         return (
           <div className="space-y-4">
             <p className="text-muted-foreground">
-              Browse the filesystem to choose one or more library folders. Click a directory
-              to open it, or use Go Up to move to the parent. Select This Folder will add the
+              Browse the filesystem to choose one or more library folders. Expand directories
+              to navigate, or use Go Up to move to a parent. Select This Folder will add the
               current path to your library list.
             </p>
             <Card>
@@ -266,15 +369,17 @@ export default function AdminSetupPage() {
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Current path</p>
-                    <p className="break-all font-semibold text-foreground">{currentPath || "Loading..."}</p>
+                    <p className="break-all font-semibold text-foreground">
+                      {selectedPath || "Loading..."}
+                    </p>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={!parentPath || isLoadingPaths}
+                    disabled={!currentParent || isLoadingPaths}
                     onClick={() => {
-                      if (parentPath) {
-                        loadDirectory(parentPath);
+                      if (currentParent) {
+                        loadDirectory(currentParent);
                       }
                     }}
                   >
@@ -285,26 +390,18 @@ export default function AdminSetupPage() {
               <CardContent className="space-y-4">
                 {browseError && <p className="text-sm text-destructive">{browseError}</p>}
                 <div className="space-y-2 rounded-md border p-2">
-                  {isLoadingPaths ? (
-                    <p className="text-sm text-muted-foreground">Loading directories...</p>
-                  ) : directories.length > 0 ? (
-                    directories.map((entry) => (
-                      <button
-                        key={entry.fullPath}
-                        type="button"
-                        className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-                        onClick={() => loadDirectory(entry.fullPath)}
-                      >
-                        <span className="font-medium text-foreground">{entry.name}</span>
-                        <span className="text-xs text-muted-foreground">{entry.fullPath}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No directories found.</p>
+                  <DirectoryTreeView
+                    root={rootNode}
+                    selectedPath={selectedPath}
+                    onSelect={handleSelectPath}
+                    onToggle={handleToggleNode}
+                  />
+                  {isLoadingPaths && (
+                    <p className="text-xs text-muted-foreground">Loading directories...</p>
                   )}
                 </div>
                 <div className="flex justify-end">
-                  <Button type="button" onClick={() => addLibraryPath(currentPath)} disabled={!currentPath}>
+                  <Button type="button" onClick={() => addLibraryPath(selectedPath)} disabled={!selectedPath}>
                     Select This Folder
                   </Button>
                 </div>
