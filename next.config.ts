@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
     localPatterns: [
       {
         pathname: "/api/thumbnail",
-        search: "**",
+        // Allow any thumbnail request identified by an id query param
+        search: "id=*",
       },
     ],
   },
