@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { prisma } from "@/lib/prisma"
-import { ValidationError, validateLibraryPaths } from "@/lib/setup"
+import { ValidationError, requireLibraryPathClient, validateLibraryPaths } from "@/lib/setup"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -13,7 +13,9 @@ export async function POST(request: Request) {
 
     const uniquePaths = await validateLibraryPaths(paths)
 
-    await prisma.libraryPath.createMany({
+    const libraryPathClient = requireLibraryPathClient(prisma)
+
+    await libraryPathClient.createMany({
       data: uniquePaths.map((path) => ({ path })),
       skipDuplicates: true,
     })

@@ -1,5 +1,7 @@
 import { promises as fs } from "fs"
 
+import type { PrismaClient } from "@prisma/client"
+
 export class ValidationError extends Error {}
 
 export async function validateLibraryPaths(paths: unknown): Promise<string[]> {
@@ -34,4 +36,18 @@ export async function validateLibraryPaths(paths: unknown): Promise<string[]> {
   }
 
   return Array.from(new Set(validatedPaths))
+}
+
+type LibraryPathClient = PrismaClient["libraryPath"]
+
+export function requireLibraryPathClient(prisma: PrismaClient): LibraryPathClient {
+  const libraryPathClient = (prisma as PrismaClient & { libraryPath?: LibraryPathClient }).libraryPath
+
+  if (!libraryPathClient) {
+    throw new ValidationError(
+      "LibraryPath model is missing from the Prisma client. Run `prisma generate` to update the client after schema changes.",
+    )
+  }
+
+  return libraryPathClient
 }

@@ -3,7 +3,7 @@ import { promisify } from "util"
 import { NextResponse } from "next/server"
 
 import { prisma } from "@/lib/prisma"
-import { ValidationError, validateLibraryPaths } from "@/lib/setup"
+import { ValidationError, requireLibraryPathClient, validateLibraryPaths } from "@/lib/setup"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -57,6 +57,8 @@ export async function POST(request: Request) {
     const uniquePaths = await validateLibraryPaths(libraryPaths)
     const passwordHash = await hashPassword(admin.password)
 
+    const libraryPathClient = requireLibraryPathClient(prisma)
+
     await prisma.$transaction([
       prisma.user.create({
         data: {
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
           role: "admin",
         },
       }),
-      prisma.libraryPath.createMany({
+      libraryPathClient.createMany({
         data: uniquePaths.map((path) => ({ path })),
         skipDuplicates: true,
       }),
