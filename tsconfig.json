@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "react-easy-crop": ["./vendor/react-easy-crop"]
     }
   },
   "include": [

@@ -1,5 +1,6 @@
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto"
 import { promisify } from "node:util"
+import { cookies } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 
 import prisma from "@/lib/prisma"
@@ -69,6 +70,31 @@ export async function clearSession(token: string | undefined) {
 
 export async function getUserFromRequest(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value
+
+  if (!token) {
+    return null
+  }
+
+  const session = await prisma.session.findUnique({
+    where: { token },
+    include: { user: true },
+  })
+
+  if (!session) {
+    return null
+  }
+
+  if (session.expiresAt < new Date()) {
+    await clearSession(token)
+    return null
+  }
+
+  return session.user
+}
+
+export async function getUserFromCookies() {
+  const cookieStore = cookies()
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
 
   if (!token) {
     return null
