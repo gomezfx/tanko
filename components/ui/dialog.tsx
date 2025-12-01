@@ -128,7 +128,8 @@ const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 )
 DialogFooter.displayName = "DialogFooter"
 
-type DialogCloseProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type DialogCloseProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> & {
+  onClick?: React.MouseEventHandler<HTMLElement>
   asChild?: boolean
 }
 
