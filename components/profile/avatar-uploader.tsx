@@ -233,7 +233,6 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
-              restrictPosition
             />
             <div className="pointer-events-none absolute inset-0 rounded-md" aria-hidden="true">
               <div

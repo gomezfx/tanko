@@ -135,7 +135,7 @@ export function Navbar() {
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger className="outline-none">
-                <Avatar>
+                <Avatar className="h-10 w-10">
                   {user.avatarUrl ? (
                     <AvatarImage src={user.avatarUrl} alt={user.username} />
                   ) : null}
