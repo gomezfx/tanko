@@ -70,7 +70,6 @@ export async function POST(request: Request) {
       }),
       libraryPathClient.createMany({
         data: uniquePaths.map((path) => ({ path })),
-        skipDuplicates: true,
       }),
     ])
 

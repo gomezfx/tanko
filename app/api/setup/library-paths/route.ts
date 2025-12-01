@@ -17,7 +17,6 @@ export async function POST(request: Request) {
 
     await libraryPathClient.createMany({
       data: uniquePaths.map((path) => ({ path })),
-      skipDuplicates: true,
     })
 
     return NextResponse.json({ success: true })
