@@ -136,8 +136,7 @@ export default function AdminSetupPage() {
     setError(null);
   };
 
-  const openDirectoryPicker = () => {
-    setError(null);
+  const openDirectoryPickerFallback = () => {
     directoryInputRef.current?.click();
   };
 
@@ -154,7 +153,7 @@ export default function AdminSetupPage() {
 
     const directoryPath = fullPath
       ? fullPath.replace(new RegExp(`${relativePath || firstFile.name}$`), "").replace(/\/$/, "")
-      : "";
+      : relativePath?.split("/")[0] || "";
 
     if (!directoryPath) {
       setError("Unable to read the selected folder. Please try entering the path manually.");
@@ -164,6 +163,38 @@ export default function AdminSetupPage() {
 
     // Reset the input so the same directory can be selected again if needed
     event.target.value = "";
+  };
+
+  const handleDirectoryPicker = async () => {
+    setError(null);
+
+    if (typeof window !== "undefined" && "showDirectoryPicker" in window) {
+      try {
+        const directoryHandle = await (window as unknown as {
+          showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>;
+        }).showDirectoryPicker();
+
+        if (directoryHandle?.name) {
+          addLibraryPath(directoryHandle.name);
+          return;
+        }
+
+        setError(
+          "Unable to read the selected folder. Please try entering the path manually.",
+        );
+        return;
+      } catch (pickerError) {
+        if ((pickerError as DOMException)?.name === "AbortError") {
+          return;
+        }
+
+        // Fall back to the input-based picker if the API is unavailable or fails.
+        openDirectoryPickerFallback();
+        return;
+      }
+    }
+
+    openDirectoryPickerFallback();
   };
 
   const removeLibraryPath = (index: number) => {
@@ -262,7 +293,7 @@ export default function AdminSetupPage() {
                 <Button type="button" variant="outline" onClick={addLibraryPath}>
                   Add Path
                 </Button>
-                <Button type="button" variant="secondary" onClick={openDirectoryPicker}>
+                <Button type="button" variant="secondary" onClick={handleDirectoryPicker}>
                   Select Folder
                 </Button>
               </div>
