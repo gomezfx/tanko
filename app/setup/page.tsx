@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -23,12 +23,22 @@ type WizardData = {
   libraryPaths: string[];
 };
 
+type DirectoryEntry = {
+  name: string;
+  fullPath: string;
+};
+
 export default function AdminSetupPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pathInput, setPathInput] = useState("");
+  const [currentPath, setCurrentPath] = useState("");
+  const [parentPath, setParentPath] = useState<string | null>(null);
+  const [directories, setDirectories] = useState<DirectoryEntry[]>([]);
+  const [isLoadingPaths, setIsLoadingPaths] = useState(false);
+  const [browseError, setBrowseError] = useState<string | null>(null);
+  const [hasLoadedInitialPath, setHasLoadedInitialPath] = useState(false);
   const [data, setData] = useState<WizardData>({
     admin: {
       username: "",
@@ -80,10 +90,10 @@ export default function AdminSetupPage() {
   };
 
   const addLibraryPath = (path?: string) => {
-    const trimmedPath = (path ?? pathInput).trim();
+    const trimmedPath = (path ?? currentPath).trim();
 
     if (!trimmedPath) {
-      setError("Enter or paste a folder path to continue.");
+      setError("Select a folder to continue.");
       return false;
     }
 
@@ -98,19 +108,51 @@ export default function AdminSetupPage() {
     return true;
   };
 
-  const handleManualAdd = () => {
-    const added = addLibraryPath(pathInput);
-    if (added) {
-      setPathInput("");
-    }
-  };
-
   const removeLibraryPath = (index: number) => {
     setData((prev) => ({
       ...prev,
       libraryPaths: prev.libraryPaths.filter((_, i) => i !== index),
     }));
   };
+
+  const loadDirectory = useCallback(
+    async (targetPath?: string) => {
+      setIsLoadingPaths(true);
+      setBrowseError(null);
+
+      try {
+        const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : "";
+        const response = await fetch(`/api/fs/list${query}`);
+
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          const message = body?.message || "Unable to load directories.";
+          throw new Error(message);
+        }
+
+        const body = await response.json();
+        setCurrentPath(body.path ?? "");
+        setParentPath(body.parent ?? null);
+        setDirectories(Array.isArray(body.directories) ? body.directories : []);
+      } catch (requestError) {
+        const message =
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to load directories.";
+        setBrowseError(message);
+      } finally {
+        setIsLoadingPaths(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (currentStep === 2 && !hasLoadedInitialPath) {
+      loadDirectory();
+      setHasLoadedInitialPath(true);
+    }
+  }, [currentStep, hasLoadedInitialPath, loadDirectory]);
 
   const finishSetup = async () => {
     setError(null);
@@ -215,30 +257,59 @@ export default function AdminSetupPage() {
         return (
           <div className="space-y-4">
             <p className="text-muted-foreground">
-              Add one or more library paths where content should be scanned. To avoid
-              browser permission prompts, paste the full folder path below. You can modify
-              these later in settings.
+              Browse the filesystem to choose one or more library folders. Click a directory
+              to open it, or use Go Up to move to the parent. Select This Folder will add the
+              current path to your library list.
             </p>
-            <div className="flex flex-col gap-3 md:flex-row">
-              <div className="flex w-full flex-col gap-2 md:flex-row md:items-center">
-                <Label className="sr-only" htmlFor="library-path">
-                  Library folder path
-                </Label>
-                <Input
-                  id="library-path"
-                  placeholder="/path/to/library"
-                  value={pathInput}
-                  onChange={(event) => {
-                    setError(null);
-                    setPathInput(event.target.value);
-                  }}
-                  className="md:max-w-sm"
-                />
-                <Button type="button" variant="secondary" onClick={handleManualAdd}>
-                  Add Folder
-                </Button>
-              </div>
-            </div>
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Current path</p>
+                    <p className="break-all font-semibold text-foreground">{currentPath || "Loading..."}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!parentPath || isLoadingPaths}
+                    onClick={() => {
+                      if (parentPath) {
+                        loadDirectory(parentPath);
+                      }
+                    }}
+                  >
+                    Go Up
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {browseError && <p className="text-sm text-destructive">{browseError}</p>}
+                <div className="space-y-2 rounded-md border p-2">
+                  {isLoadingPaths ? (
+                    <p className="text-sm text-muted-foreground">Loading directories...</p>
+                  ) : directories.length > 0 ? (
+                    directories.map((entry) => (
+                      <button
+                        key={entry.fullPath}
+                        type="button"
+                        className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => loadDirectory(entry.fullPath)}
+                      >
+                        <span className="font-medium text-foreground">{entry.name}</span>
+                        <span className="text-xs text-muted-foreground">{entry.fullPath}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No directories found.</p>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <Button type="button" onClick={() => addLibraryPath(currentPath)} disabled={!currentPath}>
+                    Select This Folder
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
             <div className="space-y-2">
               {data.libraryPaths.length > 0 ? (
                 data.libraryPaths.map((path, index) => (
@@ -246,7 +317,7 @@ export default function AdminSetupPage() {
                     key={`${path}-${index}`}
                     className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
                   >
-                    <span className="font-medium text-foreground">{path}</span>
+                    <span className="break-all font-medium text-foreground">{path}</span>
                     <Button
                       variant="ghost"
                       size="sm"
