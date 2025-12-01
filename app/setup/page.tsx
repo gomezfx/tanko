@@ -9,12 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const steps = [
-  "Welcome",
-  "Create Admin Account",
-  "Add Library Paths",
-  "Summary",
-];
+const steps = ["Welcome", "Create Admin Account", "Add Library Paths", "Confirmation"];
 
 type AdminDetails = {
   username: string;
@@ -58,40 +53,8 @@ export default function AdminSetupPage() {
     return true;
   }, [currentStep, data.admin, data.libraryPaths]);
 
-  const goNext = async () => {
+  const goNext = () => {
     setError(null);
-
-    if (currentStep === 2) {
-      setIsSubmitting(true);
-
-      try {
-        const response = await fetch("/api/setup/library-paths", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ paths: data.libraryPaths }),
-        });
-
-        if (!response.ok) {
-          const responseBody = await response.json().catch(() => null);
-          const message = responseBody?.message || "Unable to save library paths.";
-          throw new Error(message);
-        }
-
-        setCurrentStep((prev) => prev + 1);
-      } catch (requestError) {
-        const message =
-          requestError instanceof Error
-            ? requestError.message
-            : "Unable to save library paths.";
-        setError(message);
-      } finally {
-        setIsSubmitting(false);
-      }
-
-      return;
-    }
 
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
@@ -154,8 +117,35 @@ export default function AdminSetupPage() {
     }));
   };
 
-  const finishSetup = () => {
-    router.push("/admin");
+  const finishSetup = async () => {
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/setup/library-paths", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paths: data.libraryPaths }),
+      });
+
+      if (!response.ok) {
+        const responseBody = await response.json().catch(() => null);
+        const message = responseBody?.message || "Unable to save library paths.";
+        throw new Error(message);
+      }
+
+      router.push("/admin");
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to save library paths.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderStepContent = () => {
@@ -260,18 +250,13 @@ export default function AdminSetupPage() {
                 <p className="text-sm text-muted-foreground">No library paths added yet.</p>
               )}
             </div>
-            {error && (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            )}
           </div>
         );
       case 3:
         return (
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold">Admin Account</h3>
+              <h3 className="text-lg font-semibold">Account</h3>
               <dl className="mt-2 space-y-1 text-sm text-muted-foreground">
                 <div className="flex gap-2">
                   <dt className="font-medium text-foreground">Username:</dt>
@@ -281,24 +266,20 @@ export default function AdminSetupPage() {
                   <dt className="font-medium text-foreground">Email:</dt>
                   <dd>{data.admin.email || "Not provided"}</dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="font-medium text-foreground">Password:</dt>
-                  <dd>{data.admin.password ? "••••••••" : "Not provided"}</dd>
-                </div>
               </dl>
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Library Paths</h3>
+              <h3 className="text-lg font-semibold">Selected Folders</h3>
               <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                 {data.libraryPaths.length > 0 ? (
                   data.libraryPaths.map((path, index) => (
                     <li key={index} className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">Path {index + 1}:</span>
+                      <span className="font-medium text-foreground">Folder {index + 1}:</span>
                       <span>{path || "Not provided"}</span>
                     </li>
                   ))
                 ) : (
-                  <li>No paths provided.</li>
+                  <li>No folders provided.</li>
                 )}
               </ul>
             </div>
@@ -348,6 +329,11 @@ export default function AdminSetupPage() {
         </CardHeader>
         <CardContent className="space-y-8">
           {renderStepContent()}
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
           <div className="flex items-center justify-between">
             <Button type="button" variant="outline" onClick={goBack} disabled={currentStep === 0}>
               Back
@@ -358,11 +344,11 @@ export default function AdminSetupPage() {
                 onClick={goNext}
                 disabled={!canProceed || isSubmitting}
               >
-                {currentStep === 2 && isSubmitting ? "Saving..." : "Next"}
+                Next
               </Button>
             ) : (
-              <Button type="button" onClick={finishSetup}>
-                Finish
+              <Button type="button" onClick={finishSetup} disabled={isSubmitting}>
+                {isSubmitting ? "Finishing..." : "Finish"}
               </Button>
             )}
           </div>
