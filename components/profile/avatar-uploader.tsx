@@ -208,7 +208,6 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
               crop={crop}
               zoom={zoom}
               aspect={1}
-              showGrid
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
