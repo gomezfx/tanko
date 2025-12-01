@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import type React from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ export default function AdminSetupPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [libraryPathInput, setLibraryPathInput] = useState("");
+  const directoryInputRef = useRef<HTMLInputElement | null>(null);
   const [data, setData] = useState<WizardData>({
     admin: {
       username: "",
@@ -115,8 +117,8 @@ export default function AdminSetupPage() {
     }));
   };
 
-  const addLibraryPath = () => {
-    const trimmedPath = libraryPathInput.trim();
+  const addLibraryPath = (path?: string) => {
+    const trimmedPath = (path ?? libraryPathInput).trim();
 
     if (!trimmedPath) {
       setError("Please enter a path before adding it to the list.");
@@ -132,6 +134,36 @@ export default function AdminSetupPage() {
 
     setLibraryPathInput("");
     setError(null);
+  };
+
+  const openDirectoryPicker = () => {
+    setError(null);
+    directoryInputRef.current?.click();
+  };
+
+  const handleDirectorySelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const firstFile = files[0] as File & { path?: string };
+    const relativePath = firstFile.webkitRelativePath || "";
+    const fullPath = firstFile.path || "";
+
+    const directoryPath = fullPath
+      ? fullPath.replace(new RegExp(`${relativePath || firstFile.name}$`), "").replace(/\/$/, "")
+      : "";
+
+    if (!directoryPath) {
+      setError("Unable to read the selected folder. Please try entering the path manually.");
+    } else {
+      addLibraryPath(directoryPath);
+    }
+
+    // Reset the input so the same directory can be selected again if needed
+    event.target.value = "";
   };
 
   const removeLibraryPath = (index: number) => {
@@ -226,9 +258,22 @@ export default function AdminSetupPage() {
                 onChange={(event) => setLibraryPathInput(event.target.value)}
                 placeholder="/path/to/library"
               />
-              <Button type="button" variant="outline" onClick={addLibraryPath}>
-                Add Path
-              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={addLibraryPath}>
+                  Add Path
+                </Button>
+                <Button type="button" variant="secondary" onClick={openDirectoryPicker}>
+                  Select Folder
+                </Button>
+              </div>
+              <Input
+                ref={directoryInputRef}
+                type="file"
+                directory=""
+                webkitdirectory=""
+                className="hidden"
+                onChange={handleDirectorySelection}
+              />
             </div>
             <div className="space-y-2">
               {data.libraryPaths.length > 0 ? (
