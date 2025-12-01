@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export default function AdminSetupPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const directoryInputRef = useRef<HTMLInputElement | null>(null);
+  const [pathInput, setPathInput] = useState("");
   const [data, setData] = useState<WizardData>({
     admin: {
       username: "",
@@ -80,11 +80,11 @@ export default function AdminSetupPage() {
   };
 
   const addLibraryPath = (path?: string) => {
-    const trimmedPath = (path ?? "").trim();
+    const trimmedPath = (path ?? pathInput).trim();
 
     if (!trimmedPath) {
-      setError("Unable to read the selected folder. Please try again.");
-      return;
+      setError("Enter or paste a folder path to continue.");
+      return false;
     }
 
     setData((prev) => ({
@@ -95,54 +95,14 @@ export default function AdminSetupPage() {
     }));
 
     setError(null);
+    return true;
   };
 
-  const handleDirectoryChange: React.ChangeEventHandler<HTMLInputElement> = (
-    event,
-  ) => {
-    setError(null);
-
-    const files = event.target.files;
-
-    if (!files || files.length === 0) {
-      return;
+  const handleManualAdd = () => {
+    const added = addLibraryPath(pathInput);
+    if (added) {
+      setPathInput("");
     }
-
-    const [firstFile] = Array.from(files);
-    const candidatePath =
-      // Electron and some browsers expose the full path for directory selections.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ((firstFile as any).path as string | undefined) ||
-      // Fallback to the top-level folder from the relative path when absolute paths
-      // aren't available.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ((firstFile as any).webkitRelativePath as string | undefined)
-        ?.split("/")
-        .shift();
-
-    const pathHasFolderSeparator = candidatePath?.includes("/") || candidatePath?.includes("\\");
-
-    const finalizedPath = pathHasFolderSeparator
-      ? candidatePath
-      : window.prompt(
-          "Unable to determine the full folder path. Please enter or paste it below:",
-          candidatePath ?? "",
-        );
-
-    if (!finalizedPath) {
-      event.target.value = "";
-      return;
-    }
-
-    addLibraryPath(finalizedPath);
-
-    // Allow re-selecting the same folder by resetting the input value.
-    event.target.value = "";
-  };
-
-  const handleDirectoryPicker = () => {
-    setError(null);
-    directoryInputRef.current?.click();
   };
 
   const removeLibraryPath = (index: number) => {
@@ -255,22 +215,29 @@ export default function AdminSetupPage() {
         return (
           <div className="space-y-4">
             <p className="text-muted-foreground">
-              Add one or more library paths where content should be scanned. You can modify
+              Add one or more library paths where content should be scanned. To avoid
+              browser permission prompts, paste the full folder path below. You can modify
               these later in settings.
             </p>
             <div className="flex flex-col gap-3 md:flex-row">
-              <input
-                ref={directoryInputRef}
-                type="file"
-                className="hidden"
-                multiple
-                webkitdirectory=""
-                directory=""
-                onChange={handleDirectoryChange}
-              />
-              <Button type="button" variant="secondary" onClick={handleDirectoryPicker}>
-                Select Folder
-              </Button>
+              <div className="flex w-full flex-col gap-2 md:flex-row md:items-center">
+                <Label className="sr-only" htmlFor="library-path">
+                  Library folder path
+                </Label>
+                <Input
+                  id="library-path"
+                  placeholder="/path/to/library"
+                  value={pathInput}
+                  onChange={(event) => {
+                    setError(null);
+                    setPathInput(event.target.value);
+                  }}
+                  className="md:max-w-sm"
+                />
+                <Button type="button" variant="secondary" onClick={handleManualAdd}>
+                  Add Folder
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               {data.libraryPaths.length > 0 ? (
