@@ -66,6 +66,12 @@ export type ScanResult = {
 };
 
 export async function scanLibrary(): Promise<ScanResult> {
+  if (!(prisma as unknown as { volume?: unknown }).volume) {
+    throw new Error(
+      "Prisma client is missing the Volume model. Run `npm run prisma:sync` to regenerate the client."
+    );
+  }
+
   const libraryPaths = await prisma.libraryPath.findMany();
   const result: ScanResult = { found: 0, created: 0, updatedThumbs: 0 };
 
@@ -86,32 +92,26 @@ export async function scanLibrary(): Promise<ScanResult> {
         continue;
       }
 
-      const existingVolume = await prisma.volume.findUnique({ where: { filePath: cbzFile } });
-
-      if (!existingVolume) {
-        await prisma.volume.create({
-          data: {
-            title,
-            filePath: cbzFile,
-            thumbnailPath,
-            libraryPathId: libraryPath.id,
-          },
-        });
-
-        result.created += 1;
-        continue;
-      }
-
-      await prisma.volume.update({
-        where: { id: existingVolume.id },
-        data: {
+      const upsertedVolume = await prisma.volume.upsert({
+        where: { filePath: cbzFile },
+        create: {
+          title,
+          filePath: cbzFile,
+          thumbnailPath,
+          libraryPathId: libraryPath.id,
+        },
+        update: {
           title,
           thumbnailPath,
           libraryPathId: libraryPath.id,
         },
       });
 
-      result.updatedThumbs += 1;
+      if (upsertedVolume.createdAt.getTime() === upsertedVolume.updatedAt.getTime()) {
+        result.created += 1;
+      } else {
+        result.updatedThumbs += 1;
+      }
     }
   }
 
