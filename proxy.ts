@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
-const EXCLUDED_PATHS = ["/_next", "/setup", "/api/setup", "/favicon"]
+const EXCLUDED_PATHS = ["/_next", "/setup", "/api/setup", "/api/fs", "/favicon"]
 
 function isExcluded(pathname: string) {
   return EXCLUDED_PATHS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}`))
