@@ -1,18 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
+import { DirectoryTreeView, type DirectoryTreeNode } from "@/components/directory-tree-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const steps = [
-  "Welcome",
-  "Create Admin Account",
-  "Add Library Paths",
-  "Summary",
-];
+const steps = ["Welcome", "Create Admin Account", "Add Library Paths", "Confirmation"];
 
 type AdminDetails = {
   username: string;
@@ -26,8 +24,61 @@ type WizardData = {
   libraryPaths: string[];
 };
 
+type DirectoryListingEntry = {
+  name: string;
+  fullPath: string;
+};
+
+const buildNodes = (entries: DirectoryListingEntry[]): DirectoryTreeNode[] =>
+  entries.map((entry) => ({
+    name: entry.name,
+    fullPath: entry.fullPath,
+    children: [],
+    isExpanded: false,
+    isLoading: false,
+    hasLoaded: false,
+  }));
+
+const updateNodeByPath = (
+  node: DirectoryTreeNode,
+  targetPath: string,
+  updater: (node: DirectoryTreeNode) => DirectoryTreeNode,
+): DirectoryTreeNode => {
+  if (node.fullPath === targetPath) {
+    return updater(node);
+  }
+
+  return {
+    ...node,
+    children: node.children.map((child) => updateNodeByPath(child, targetPath, updater)),
+  };
+};
+
+const findNodeByPath = (
+  node: DirectoryTreeNode | null,
+  targetPath: string,
+): DirectoryTreeNode | null => {
+  if (!node) return null;
+  if (node.fullPath === targetPath) return node;
+
+  for (const child of node.children) {
+    const found = findNodeByPath(child, targetPath);
+    if (found) return found;
+  }
+
+  return null;
+};
+
 export default function AdminSetupPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPath, setSelectedPath] = useState("");
+  const [rootNode, setRootNode] = useState<DirectoryTreeNode | null>(null);
+  const [isLoadingPaths, setIsLoadingPaths] = useState(false);
+  const [browseError, setBrowseError] = useState<string | null>(null);
+  const [hasLoadedInitialPath, setHasLoadedInitialPath] = useState(false);
   const [data, setData] = useState<WizardData>({
     admin: {
       username: "",
@@ -35,7 +86,7 @@ export default function AdminSetupPage() {
       password: "",
       confirmPassword: "",
     },
-    libraryPaths: [""],
+    libraryPaths: [],
   });
 
   const canProceed = useMemo(() => {
@@ -47,19 +98,22 @@ export default function AdminSetupPage() {
     }
 
     if (currentStep === 2) {
-      return data.libraryPaths.some((path) => path.trim().length > 0);
+      return data.libraryPaths.length > 0;
     }
 
     return true;
   }, [currentStep, data.admin, data.libraryPaths]);
 
   const goNext = () => {
+    setError(null);
+
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     }
   };
 
   const goBack = () => {
+    setError(null);
     if (currentStep > 0) {
       setCurrentStep((prev) => prev - 1);
     }
@@ -75,16 +129,23 @@ export default function AdminSetupPage() {
     }));
   };
 
-  const updateLibraryPath = (index: number, value: string) => {
-    setData((prev) => {
-      const updatedPaths = [...prev.libraryPaths];
-      updatedPaths[index] = value;
-      return { ...prev, libraryPaths: updatedPaths };
-    });
-  };
+  const addLibraryPath = (path?: string) => {
+    const trimmedPath = (path ?? selectedPath).trim();
 
-  const addLibraryPath = () => {
-    setData((prev) => ({ ...prev, libraryPaths: [...prev.libraryPaths, ""] }));
+    if (!trimmedPath) {
+      setError("Select a folder to continue.");
+      return false;
+    }
+
+    setData((prev) => ({
+      ...prev,
+      libraryPaths: prev.libraryPaths.includes(trimmedPath)
+        ? prev.libraryPaths
+        : [...prev.libraryPaths, trimmedPath],
+    }));
+
+    setError(null);
+    return true;
   };
 
   const removeLibraryPath = (index: number) => {
@@ -92,6 +153,136 @@ export default function AdminSetupPage() {
       ...prev,
       libraryPaths: prev.libraryPaths.filter((_, i) => i !== index),
     }));
+  };
+
+  const applyListingToTree = useCallback((resolvedPath: string, directories: DirectoryTreeNode[]) => {
+      setRootNode((previous) => {
+        if (!previous) {
+          return {
+            name: resolvedPath || "Root",
+            fullPath: resolvedPath,
+            children: directories,
+            isExpanded: true,
+            isLoading: false,
+            hasLoaded: true,
+          };
+        }
+
+        return updateNodeByPath(previous, resolvedPath, (node) => ({
+          ...node,
+          isExpanded: true,
+          isLoading: false,
+          hasLoaded: true,
+          children: directories,
+        }));
+      });
+
+      setSelectedPath(resolvedPath);
+    },
+    [],
+  );
+
+  const loadDirectory = useCallback(
+    async (targetPath?: string) => {
+      setIsLoadingPaths(true);
+      setBrowseError(null);
+
+      try {
+        const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : "";
+        const response = await fetch(`/api/fs/list${query}`);
+
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          const message = body?.message || "Unable to load directories.";
+          throw new Error(message);
+        }
+
+        const body = await response.json();
+        const resolvedPath = body.path ?? "";
+        const directories = Array.isArray(body.directories) ? buildNodes(body.directories) : [];
+        applyListingToTree(resolvedPath, directories);
+      } catch (requestError) {
+        const message =
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to load directories.";
+        setBrowseError(message);
+      } finally {
+        setIsLoadingPaths(false);
+      }
+    },
+    [applyListingToTree],
+  );
+
+  const handleToggleNode = async (path: string) => {
+    const existing = findNodeByPath(rootNode, path);
+    if (!existing) return;
+
+    if (existing.hasLoaded) {
+      setRootNode((previous) =>
+        previous ? updateNodeByPath(previous, path, (node) => ({
+          ...node,
+          isExpanded: !node.isExpanded,
+        })) : previous,
+      );
+      return;
+    }
+
+    setRootNode((previous) =>
+      previous
+        ? updateNodeByPath(previous, path, (node) => ({ ...node, isLoading: true }))
+        : previous,
+    );
+
+    await loadDirectory(path);
+
+    setRootNode((previous) =>
+      previous
+        ? updateNodeByPath(previous, path, (node) => ({ ...node, isLoading: false }))
+        : previous,
+    );
+  };
+
+  const handleSelectPath = async (path: string) => {
+    await loadDirectory(path);
+  };
+
+  useEffect(() => {
+    if (currentStep === 2 && !hasLoadedInitialPath) {
+      loadDirectory();
+      setHasLoadedInitialPath(true);
+    }
+  }, [currentStep, hasLoadedInitialPath, loadDirectory]);
+
+  const finishSetup = async () => {
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/setup/library-paths", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paths: data.libraryPaths }),
+      });
+
+      if (!response.ok) {
+        const responseBody = await response.json().catch(() => null);
+        const message = responseBody?.message || "Unable to save library paths.";
+        throw new Error(message);
+      }
+
+      router.push("/admin");
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to save library paths.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderStepContent = () => {
@@ -166,40 +357,67 @@ export default function AdminSetupPage() {
         return (
           <div className="space-y-4">
             <p className="text-muted-foreground">
-              Add one or more library paths where content should be scanned. You can modify
-              these later in settings.
+              Browse the filesystem to choose one or more library folders. Expand directories
+              to navigate and select a folder to add it to your library list.
             </p>
-            <div className="space-y-3">
-              {data.libraryPaths.map((path, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <Input
-                    value={path}
-                    onChange={(event) => updateLibraryPath(index, event.target.value)}
-                    placeholder="/path/to/library"
+            <Card>
+              <CardHeader>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Current path</p>
+                  <p className="break-all font-semibold text-foreground">
+                    {selectedPath || "Loading..."}
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {browseError && <p className="text-sm text-destructive">{browseError}</p>}
+                <div className="space-y-2 rounded-md border p-2">
+                  <DirectoryTreeView
+                    root={rootNode}
+                    selectedPath={selectedPath}
+                    onSelect={handleSelectPath}
+                    onToggle={handleToggleNode}
                   />
-                  {data.libraryPaths.length > 1 && (
+                  {isLoadingPaths && (
+                    <p className="text-xs text-muted-foreground">Loading directories...</p>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <Button type="button" onClick={() => addLibraryPath(selectedPath)} disabled={!selectedPath}>
+                    Select Folder
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            <div className="space-y-2">
+              {data.libraryPaths.length > 0 ? (
+                data.libraryPaths.map((path, index) => (
+                  <div
+                    key={`${path}-${index}`}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                  >
+                    <span className="break-all font-medium text-foreground">{path}</span>
                     <Button
                       variant="ghost"
+                      size="sm"
                       type="button"
-                      className="shrink-0"
                       onClick={() => removeLibraryPath(index)}
                     >
                       Remove
                     </Button>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No library paths added yet.</p>
+              )}
             </div>
-            <Button type="button" variant="outline" onClick={addLibraryPath}>
-              Add path
-            </Button>
           </div>
         );
       case 3:
         return (
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold">Admin Account</h3>
+              <h3 className="text-lg font-semibold">Account</h3>
               <dl className="mt-2 space-y-1 text-sm text-muted-foreground">
                 <div className="flex gap-2">
                   <dt className="font-medium text-foreground">Username:</dt>
@@ -209,24 +427,20 @@ export default function AdminSetupPage() {
                   <dt className="font-medium text-foreground">Email:</dt>
                   <dd>{data.admin.email || "Not provided"}</dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="font-medium text-foreground">Password:</dt>
-                  <dd>{data.admin.password ? "••••••••" : "Not provided"}</dd>
-                </div>
               </dl>
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Library Paths</h3>
+              <h3 className="text-lg font-semibold">Selected Folders</h3>
               <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                 {data.libraryPaths.length > 0 ? (
                   data.libraryPaths.map((path, index) => (
                     <li key={index} className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">Path {index + 1}:</span>
+                      <span className="font-medium text-foreground">Folder {index + 1}:</span>
                       <span>{path || "Not provided"}</span>
                     </li>
                   ))
                 ) : (
-                  <li>No paths provided.</li>
+                  <li>No folders provided.</li>
                 )}
               </ul>
             </div>
@@ -276,17 +490,26 @@ export default function AdminSetupPage() {
         </CardHeader>
         <CardContent className="space-y-8">
           {renderStepContent()}
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
           <div className="flex items-center justify-between">
             <Button type="button" variant="outline" onClick={goBack} disabled={currentStep === 0}>
               Back
             </Button>
             {currentStep < steps.length - 1 ? (
-              <Button type="button" onClick={goNext} disabled={!canProceed}>
+              <Button
+                type="button"
+                onClick={goNext}
+                disabled={!canProceed || isSubmitting}
+              >
                 Next
               </Button>
             ) : (
-              <Button type="button" disabled className="cursor-not-allowed opacity-80">
-                Finish
+              <Button type="button" onClick={finishSetup} disabled={isSubmitting}>
+                {isSubmitting ? "Finishing..." : "Finish"}
               </Button>
             )}
           </div>
