@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const steps = ["Welcome", "Create Admin Account", "Add Library Paths", "Confirmation"];
-const MIN_PASSWORD_LENGTH = 8;
 
 type AdminDetails = {
   username: string;
@@ -93,13 +92,7 @@ export default function AdminSetupPage() {
   const canProceed = useMemo(() => {
     if (currentStep === 1) {
       const { username, password, confirmPassword } = data.admin;
-      return Boolean(
-        username.trim() &&
-          password &&
-          password.length >= MIN_PASSWORD_LENGTH &&
-          confirmPassword &&
-          password === confirmPassword,
-      );
+      return Boolean(username.trim() && password === confirmPassword);
     }
 
     if (currentStep === 2) {
@@ -269,11 +262,6 @@ export default function AdminSetupPage() {
 
     if (!trimmedUsername) {
       setError("Username is required.");
-      return;
-    }
-
-    if (!password || password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
       return;
     }
 

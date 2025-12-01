@@ -8,7 +8,6 @@ import { ValidationError, validateLibraryPaths } from "@/lib/setup"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-const MIN_PASSWORD_LENGTH = 8
 const scryptAsync = promisify(scrypt) as (
   password: string | Buffer,
   salt: string | Buffer,
@@ -28,10 +27,6 @@ function validateAdmin(admin: AdminPayload) {
 
   if (!username) {
     throw new ValidationError("Username is required.")
-  }
-
-  if (!password || password.length < MIN_PASSWORD_LENGTH) {
-    throw new ValidationError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`)
   }
 
   return {
