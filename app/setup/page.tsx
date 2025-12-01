@@ -165,35 +165,8 @@ export default function AdminSetupPage() {
     event.target.value = "";
   };
 
-  const handleDirectoryPicker = async () => {
+  const handleDirectoryPicker = () => {
     setError(null);
-
-    if (typeof window !== "undefined" && "showDirectoryPicker" in window) {
-      try {
-        const directoryHandle = await (window as unknown as {
-          showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>;
-        }).showDirectoryPicker();
-
-        if (directoryHandle?.name) {
-          addLibraryPath(directoryHandle.name);
-          return;
-        }
-
-        setError(
-          "Unable to read the selected folder. Please try entering the path manually.",
-        );
-        return;
-      } catch (pickerError) {
-        if ((pickerError as DOMException)?.name === "AbortError") {
-          return;
-        }
-
-        // Fall back to the input-based picker if the API is unavailable or fails.
-        openDirectoryPickerFallback();
-        return;
-      }
-    }
-
     openDirectoryPickerFallback();
   };
 
