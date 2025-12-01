@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,6 @@ export default function AdminSetupPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const directoryInputRef = useRef<HTMLInputElement | null>(null);
   const [data, setData] = useState<WizardData>({
     admin: {
       username: "",
@@ -134,38 +133,18 @@ export default function AdminSetupPage() {
     setError(null);
   };
 
-  const openDirectoryPickerFallback = () => {
-    directoryInputRef.current?.click();
-  };
+  const handleDirectoryPicker = () => {
+    setError(null);
 
-  const handleDirectorySelection = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
+    const selectedPath = window.prompt(
+      "Enter or paste the full path to the folder you want to add:",
+    );
 
-    if (!files || files.length === 0) {
+    if (!selectedPath) {
       return;
     }
 
-    const firstFile = files[0] as File & { path?: string };
-    const relativePath = firstFile.webkitRelativePath || "";
-    const fullPath = firstFile.path || "";
-
-    const directoryPath = fullPath
-      ? fullPath.replace(new RegExp(`${relativePath || firstFile.name}$`), "").replace(/\/$/, "")
-      : relativePath?.split("/")[0] || "";
-
-    if (!directoryPath) {
-      setError("Unable to read the selected folder. Please try entering the path manually.");
-    } else {
-      addLibraryPath(directoryPath);
-    }
-
-    // Reset the input so the same directory can be selected again if needed
-    event.target.value = "";
-  };
-
-  const handleDirectoryPicker = () => {
-    setError(null);
-    openDirectoryPickerFallback();
+    addLibraryPath(selectedPath);
   };
 
   const removeLibraryPath = (index: number) => {
@@ -258,14 +237,6 @@ export default function AdminSetupPage() {
               <Button type="button" variant="secondary" onClick={handleDirectoryPicker}>
                 Select Folder
               </Button>
-              <Input
-                ref={directoryInputRef}
-                type="file"
-                directory=""
-                webkitdirectory=""
-                className="hidden"
-                onChange={handleDirectorySelection}
-              />
             </div>
             <div className="space-y-2">
               {data.libraryPaths.length > 0 ? (
