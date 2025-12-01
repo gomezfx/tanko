@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +28,11 @@ type WizardData = {
 };
 
 export default function AdminSetupPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [libraryPathInput, setLibraryPathInput] = useState("");
   const [data, setData] = useState<WizardData>({
     admin: {
       username: "",
@@ -35,7 +40,7 @@ export default function AdminSetupPage() {
       password: "",
       confirmPassword: "",
     },
-    libraryPaths: [""],
+    libraryPaths: [],
   });
 
   const canProceed = useMemo(() => {
@@ -47,19 +52,54 @@ export default function AdminSetupPage() {
     }
 
     if (currentStep === 2) {
-      return data.libraryPaths.some((path) => path.trim().length > 0);
+      return data.libraryPaths.length > 0;
     }
 
     return true;
   }, [currentStep, data.admin, data.libraryPaths]);
 
-  const goNext = () => {
+  const goNext = async () => {
+    setError(null);
+
+    if (currentStep === 2) {
+      setIsSubmitting(true);
+
+      try {
+        const response = await fetch("/api/setup/library-paths", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ paths: data.libraryPaths }),
+        });
+
+        if (!response.ok) {
+          const responseBody = await response.json().catch(() => null);
+          const message = responseBody?.message || "Unable to save library paths.";
+          throw new Error(message);
+        }
+
+        setCurrentStep((prev) => prev + 1);
+      } catch (requestError) {
+        const message =
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to save library paths.";
+        setError(message);
+      } finally {
+        setIsSubmitting(false);
+      }
+
+      return;
+    }
+
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     }
   };
 
   const goBack = () => {
+    setError(null);
     if (currentStep > 0) {
       setCurrentStep((prev) => prev - 1);
     }
@@ -75,16 +115,23 @@ export default function AdminSetupPage() {
     }));
   };
 
-  const updateLibraryPath = (index: number, value: string) => {
-    setData((prev) => {
-      const updatedPaths = [...prev.libraryPaths];
-      updatedPaths[index] = value;
-      return { ...prev, libraryPaths: updatedPaths };
-    });
-  };
-
   const addLibraryPath = () => {
-    setData((prev) => ({ ...prev, libraryPaths: [...prev.libraryPaths, ""] }));
+    const trimmedPath = libraryPathInput.trim();
+
+    if (!trimmedPath) {
+      setError("Please enter a path before adding it to the list.");
+      return;
+    }
+
+    setData((prev) => ({
+      ...prev,
+      libraryPaths: prev.libraryPaths.includes(trimmedPath)
+        ? prev.libraryPaths
+        : [...prev.libraryPaths, trimmedPath],
+    }));
+
+    setLibraryPathInput("");
+    setError(null);
   };
 
   const removeLibraryPath = (index: number) => {
@@ -92,6 +139,10 @@ export default function AdminSetupPage() {
       ...prev,
       libraryPaths: prev.libraryPaths.filter((_, i) => i !== index),
     }));
+  };
+
+  const finishSetup = () => {
+    router.push("/admin");
   };
 
   const renderStepContent = () => {
@@ -169,30 +220,43 @@ export default function AdminSetupPage() {
               Add one or more library paths where content should be scanned. You can modify
               these later in settings.
             </p>
-            <div className="space-y-3">
-              {data.libraryPaths.map((path, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <Input
-                    value={path}
-                    onChange={(event) => updateLibraryPath(index, event.target.value)}
-                    placeholder="/path/to/library"
-                  />
-                  {data.libraryPaths.length > 1 && (
+            <div className="flex flex-col gap-3 md:flex-row">
+              <Input
+                value={libraryPathInput}
+                onChange={(event) => setLibraryPathInput(event.target.value)}
+                placeholder="/path/to/library"
+              />
+              <Button type="button" variant="outline" onClick={addLibraryPath}>
+                Add Path
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {data.libraryPaths.length > 0 ? (
+                data.libraryPaths.map((path, index) => (
+                  <div
+                    key={`${path}-${index}`}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium text-foreground">{path}</span>
                     <Button
                       variant="ghost"
+                      size="sm"
                       type="button"
-                      className="shrink-0"
                       onClick={() => removeLibraryPath(index)}
                     >
                       Remove
                     </Button>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No library paths added yet.</p>
+              )}
             </div>
-            <Button type="button" variant="outline" onClick={addLibraryPath}>
-              Add path
-            </Button>
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
           </div>
         );
       case 3:
@@ -281,11 +345,15 @@ export default function AdminSetupPage() {
               Back
             </Button>
             {currentStep < steps.length - 1 ? (
-              <Button type="button" onClick={goNext} disabled={!canProceed}>
-                Next
+              <Button
+                type="button"
+                onClick={goNext}
+                disabled={!canProceed || isSubmitting}
+              >
+                {currentStep === 2 && isSubmitting ? "Saving..." : "Next"}
               </Button>
             ) : (
-              <Button type="button" disabled className="cursor-not-allowed opacity-80">
+              <Button type="button" onClick={finishSetup}>
                 Finish
               </Button>
             )}
