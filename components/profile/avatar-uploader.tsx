@@ -75,8 +75,7 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
   const [saving, setSaving] = useState(false)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
-  const [cropSize, setCropSize] = useState(280)
-  const [cropSizeMax, setCropSizeMax] = useState(320)
+  const [cropSize, setCropSize] = useState(320)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const cropContainerRef = useRef<HTMLDivElement | null>(null)
@@ -96,8 +95,7 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
   useEffect(() => {
     const updateCropSize = () => {
       const containerWidth = cropContainerRef.current?.clientWidth ?? 320
-      setCropSize((current) => Math.min(Math.max(160, current), containerWidth))
-      setCropSizeMax(containerWidth)
+      setCropSize(containerWidth)
     }
 
     updateCropSize()
@@ -237,6 +235,20 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
               onCropComplete={onCropComplete}
               restrictPosition
             />
+            <div className="pointer-events-none absolute inset-0 rounded-md" aria-hidden="true">
+              <div
+                className="absolute inset-0 rounded-md"
+                style={{
+                  background: "radial-gradient(circle at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.55) 60%)",
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div
+                  className="rounded-full border border-white/80 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]"
+                  style={{ width: "75%", height: "75%" }}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -250,20 +262,6 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
               onChange={(event) => setZoom(Number(event.target.value))}
               className="w-full"
               aria-label="Zoom"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Crop size</span>
-            <input
-              type="range"
-              min={160}
-              max={cropSizeMax}
-              step={10}
-              value={cropSize}
-              onChange={(event) => setCropSize(Number(event.target.value))}
-              className="w-full"
-              aria-label="Crop size"
             />
           </div>
 
