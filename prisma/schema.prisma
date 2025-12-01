@@ -8,9 +8,12 @@ generator client {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  email        String?  @unique
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
 }
 
 model LibraryPath {
@@ -18,4 +21,3 @@ model LibraryPath {
   path      String
   createdAt DateTime @default(now())
 }
-
