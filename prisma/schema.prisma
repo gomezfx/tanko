@@ -20,4 +20,19 @@ model LibraryPath {
   id        Int      @id @default(autoincrement())
   path      String
   createdAt DateTime @default(now())
+
+  volumes Volume[]
+}
+
+model Volume {
+  id            Int      @id @default(autoincrement())
+  title         String
+  author        String?
+  filePath      String   @unique
+  thumbnailPath String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  libraryPathId Int?
+
+  libraryPath LibraryPath? @relation(fields: [libraryPathId], references: [id])
 }
