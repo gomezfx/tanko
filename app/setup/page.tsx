@@ -33,7 +33,6 @@ export default function AdminSetupPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [libraryPathInput, setLibraryPathInput] = useState("");
   const directoryInputRef = useRef<HTMLInputElement | null>(null);
   const [data, setData] = useState<WizardData>({
     admin: {
@@ -118,10 +117,10 @@ export default function AdminSetupPage() {
   };
 
   const addLibraryPath = (path?: string) => {
-    const trimmedPath = (path ?? libraryPathInput).trim();
+    const trimmedPath = (path ?? "").trim();
 
     if (!trimmedPath) {
-      setError("Please enter a path before adding it to the list.");
+      setError("Unable to read the selected folder. Please try again.");
       return;
     }
 
@@ -132,7 +131,6 @@ export default function AdminSetupPage() {
         : [...prev.libraryPaths, trimmedPath],
     }));
 
-    setLibraryPathInput("");
     setError(null);
   };
 
@@ -257,19 +255,9 @@ export default function AdminSetupPage() {
               these later in settings.
             </p>
             <div className="flex flex-col gap-3 md:flex-row">
-              <Input
-                value={libraryPathInput}
-                onChange={(event) => setLibraryPathInput(event.target.value)}
-                placeholder="/path/to/library"
-              />
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={addLibraryPath}>
-                  Add Path
-                </Button>
-                <Button type="button" variant="secondary" onClick={handleDirectoryPicker}>
-                  Select Folder
-                </Button>
-              </div>
+              <Button type="button" variant="secondary" onClick={handleDirectoryPicker}>
+                Select Folder
+              </Button>
               <Input
                 ref={directoryInputRef}
                 type="file"
