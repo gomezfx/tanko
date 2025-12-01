@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,19 @@ export default function AdminSetupPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const directoryInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const directoryInput = directoryInputRef.current;
+
+    if (!directoryInput) {
+      return;
+    }
+
+    directoryInput.setAttribute("webkitdirectory", "");
+    directoryInput.setAttribute("directory", "");
+    directoryInput.setAttribute("multiple", "");
+  }, []);
   const [data, setData] = useState<WizardData>({
     admin: {
       username: "",
@@ -96,18 +109,52 @@ export default function AdminSetupPage() {
     setError(null);
   };
 
-  const handleDirectoryPicker = () => {
+  const handleDirectoryChange: React.ChangeEventHandler<HTMLInputElement> = (
+    event,
+  ) => {
     setError(null);
 
-    const selectedPath = window.prompt(
-      "Enter or paste the full path to the folder you want to add:",
-    );
+    const files = event.target.files;
 
-    if (!selectedPath) {
+    if (!files || files.length === 0) {
       return;
     }
 
-    addLibraryPath(selectedPath);
+    const [firstFile] = Array.from(files);
+    const candidatePath =
+      // Electron and some browsers expose the full path for directory selections.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((firstFile as any).path as string | undefined) ||
+      // Fallback to the top-level folder from the relative path when absolute paths
+      // aren't available.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((firstFile as any).webkitRelativePath as string | undefined)
+        ?.split("/")
+        .shift();
+
+    const pathHasFolderSeparator = candidatePath?.includes("/") || candidatePath?.includes("\\");
+
+    const finalizedPath = pathHasFolderSeparator
+      ? candidatePath
+      : window.prompt(
+          "Unable to determine the full folder path. Please enter or paste it below:",
+          candidatePath ?? "",
+        );
+
+    if (!finalizedPath) {
+      event.target.value = "";
+      return;
+    }
+
+    addLibraryPath(finalizedPath);
+
+    // Allow re-selecting the same folder by resetting the input value.
+    event.target.value = "";
+  };
+
+  const handleDirectoryPicker = () => {
+    setError(null);
+    directoryInputRef.current?.click();
   };
 
   const removeLibraryPath = (index: number) => {
@@ -224,6 +271,12 @@ export default function AdminSetupPage() {
               these later in settings.
             </p>
             <div className="flex flex-col gap-3 md:flex-row">
+              <input
+                ref={directoryInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleDirectoryChange}
+              />
               <Button type="button" variant="secondary" onClick={handleDirectoryPicker}>
                 Select Folder
               </Button>
