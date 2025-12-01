@@ -18,6 +18,9 @@ export default function AdminLayout({
               <Link href="/admin">Dashboard</Link>
             </Button>
             <Button asChild variant="ghost" className="justify-start">
+              <Link href="/admin/manga">Manga</Link>
+            </Button>
+            <Button asChild variant="ghost" className="justify-start">
               <Link href="/admin/settings">Settings</Link>
             </Button>
           </nav>
