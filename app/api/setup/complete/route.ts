@@ -2,6 +2,8 @@ import { randomBytes, scrypt } from "crypto"
 import { promisify } from "util"
 import { NextResponse } from "next/server"
 
+import { Prisma } from "@prisma/client"
+
 import { prisma } from "@/lib/prisma"
 import { ValidationError, requireLibraryPathClient, validateLibraryPaths } from "@/lib/setup"
 
@@ -77,6 +79,25 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof ValidationError) {
       return NextResponse.json({ message: error.message }, { status: 400 })
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022") {
+      const metaColumn =
+        typeof error.meta?.column === "string"
+          ? error.meta.column
+          : typeof (error.meta as Record<string, unknown> | undefined)?.column_name === "string"
+            ? (error.meta as { column_name: string }).column_name
+            : null
+      const missingColumn = metaColumn ?? "a required column"
+
+      return NextResponse.json(
+        {
+          message:
+            "Database schema is out of date. Run `prisma migrate deploy` (or reset/dev) and `prisma generate` to sync migrations.",
+          details: `Missing ${missingColumn} on the User table.`,
+        },
+        { status: 500 },
+      )
     }
 
     console.error(error)
