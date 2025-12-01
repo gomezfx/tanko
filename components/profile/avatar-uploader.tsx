@@ -75,8 +75,10 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
   const [saving, setSaving] = useState(false)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
+  const [cropSize, setCropSize] = useState(320)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const cropContainerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setPreviewUrl(user?.avatarUrl ?? initialAvatarUrl ?? null)
@@ -89,6 +91,20 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
       }
     }
   }, [fileUrl])
+
+  useEffect(() => {
+    const updateCropSize = () => {
+      const containerWidth = cropContainerRef.current?.clientWidth ?? 320
+      setCropSize(containerWidth)
+    }
+
+    updateCropSize()
+    window.addEventListener("resize", updateCropSize)
+
+    return () => {
+      window.removeEventListener("resize", updateCropSize)
+    }
+  }, [])
 
   const onCropComplete = useCallback((_croppedArea: Area, areaPixels: Area) => {
     setCroppedAreaPixels(areaPixels)
@@ -202,12 +218,17 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
 
       {fileUrl && (
         <div className="space-y-3">
-          <div className="relative aspect-square w-full max-w-2xl overflow-hidden rounded-md border bg-muted">
+          <div
+            ref={cropContainerRef}
+            className="relative aspect-square w-full max-w-2xl overflow-hidden rounded-md border bg-muted"
+          >
             <Cropper
               image={fileUrl}
               crop={crop}
               zoom={zoom}
               aspect={1}
+              cropShape="rect"
+              cropSize={{ width: cropSize, height: cropSize }}
               showGrid
               onCropChange={setCrop}
               onZoomChange={setZoom}
