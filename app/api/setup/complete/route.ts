@@ -1,20 +1,13 @@
-import { randomBytes, scrypt } from "crypto"
-import { promisify } from "util"
 import { NextResponse } from "next/server"
 
 import { Prisma } from "@prisma/client"
 
+import { hashPassword } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { ValidationError, requireLibraryPathClient, validateLibraryPaths } from "@/lib/setup"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-
-const scryptAsync = promisify(scrypt) as (
-  password: string | Buffer,
-  salt: string | Buffer,
-  keylen: number,
-) => Promise<Buffer>
 
 type AdminPayload = {
   username?: unknown
@@ -36,12 +29,6 @@ function validateAdmin(admin: AdminPayload) {
     email: email || null,
     password,
   }
-}
-
-async function hashPassword(password: string) {
-  const salt = randomBytes(16)
-  const derivedKey = await scryptAsync(password, salt, 64)
-  return `${salt.toString("hex")}:${derivedKey.toString("hex")}`
 }
 
 export async function POST(request: Request) {

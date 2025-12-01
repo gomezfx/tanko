@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import prisma from "@/lib/prisma";
@@ -21,12 +22,14 @@ export default async function MangaPage() {
         {volumes.map((v) => (
           <Link key={v.id} href={`/admin/manga/${v.id}`}>
             <Card className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow">
-              <div className="aspect-[2/3] w-full bg-muted">
+              <div className="relative aspect-[2/3] w-full bg-muted">
                 {v.thumbnailPath ? (
-                  <img
+                  <Image
                     src={`/api/thumbnail?id=${v.id}`}
                     alt={v.title}
-                    className="h-full w-full object-cover"
+                    fill
+                    className="object-cover"
+                    sizes="(min-width: 1024px) 200px, 25vw"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">

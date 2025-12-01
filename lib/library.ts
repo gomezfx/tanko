@@ -52,7 +52,6 @@ export async function generateThumbnailFromCbz(cbzPath: string): Promise<string>
   const thumbnailPath = path.join(thumbnailsDir, `${baseName}.jpg`);
 
   await sharp(imageData)
-    .resize({ width: 300, height: 300, fit: "inside" })
     .jpeg({ quality: 80 })
     .toFile(thumbnailPath);
 
