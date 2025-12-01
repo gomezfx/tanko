@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -29,18 +29,6 @@ export default function AdminSetupPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const directoryInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    const directoryInput = directoryInputRef.current;
-
-    if (!directoryInput) {
-      return;
-    }
-
-    directoryInput.setAttribute("webkitdirectory", "");
-    directoryInput.setAttribute("directory", "");
-    directoryInput.setAttribute("multiple", "");
-  }, []);
   const [data, setData] = useState<WizardData>({
     admin: {
       username: "",
@@ -275,6 +263,9 @@ export default function AdminSetupPage() {
                 ref={directoryInputRef}
                 type="file"
                 className="hidden"
+                multiple
+                webkitdirectory=""
+                directory=""
                 onChange={handleDirectoryChange}
               />
               <Button type="button" variant="secondary" onClick={handleDirectoryPicker}>
