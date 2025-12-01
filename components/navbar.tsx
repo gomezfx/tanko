@@ -146,7 +146,7 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem onClick={() => (window.location.href = "/profile")}>
-                  {user.username}
+                  <span className="font-semibold">{user.username}</span>
                 </DropdownMenuItem>
                 {user.role === "admin" && (
                   <DropdownMenuItem onClick={() => (window.location.href = "/admin")}>Admin</DropdownMenuItem>
