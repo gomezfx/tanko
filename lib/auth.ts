@@ -93,7 +93,7 @@ export async function getUserFromRequest(request: NextRequest) {
 }
 
 export async function getUserFromCookies() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
 
   if (!token) {
