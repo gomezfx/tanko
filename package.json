@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "prisma:sync": "mkdir -p data && prisma migrate deploy && prisma generate",
+    "dev": "npm run prisma:sync && next dev",
+    "build": "npm run prisma:sync && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "npm run prisma:sync"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

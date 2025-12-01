@@ -92,9 +92,7 @@ export default function AdminSetupPage() {
   const canProceed = useMemo(() => {
     if (currentStep === 1) {
       const { username, password, confirmPassword } = data.admin;
-      return Boolean(
-        username.trim() && password && confirmPassword && password === confirmPassword,
-      );
+      return Boolean(username.trim() && password === confirmPassword);
     }
 
     if (currentStep === 2) {
@@ -256,20 +254,48 @@ export default function AdminSetupPage() {
 
   const finishSetup = async () => {
     setError(null);
+
+    const trimmedUsername = data.admin.username.trim();
+    const email = data.admin.email.trim();
+    const password = data.admin.password;
+    const confirmPassword = data.admin.confirmPassword;
+
+    if (!trimmedUsername) {
+      setError("Username is required.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (data.libraryPaths.length === 0) {
+      setError("Add at least one library folder to continue.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/setup/library-paths", {
+      const response = await fetch("/api/setup/complete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ paths: data.libraryPaths }),
+        body: JSON.stringify({
+          admin: {
+            username: trimmedUsername,
+            email,
+            password,
+          },
+          libraryPaths: data.libraryPaths,
+        }),
       });
 
       if (!response.ok) {
         const responseBody = await response.json().catch(() => null);
-        const message = responseBody?.message || "Unable to save library paths.";
+        const message = responseBody?.message || "Unable to complete setup.";
         throw new Error(message);
       }
 
@@ -278,7 +304,7 @@ export default function AdminSetupPage() {
       const message =
         requestError instanceof Error
           ? requestError.message
-          : "Unable to save library paths.";
+          : "Unable to complete setup.";
       setError(message);
     } finally {
       setIsSubmitting(false);
