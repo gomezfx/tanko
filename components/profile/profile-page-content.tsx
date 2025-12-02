@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react"
 import NextImage from "next/image"
-import { Camera, Pencil } from "lucide-react"
+import { Camera, Pencil, X } from "lucide-react"
 
 import AvatarUploader from "@/components/profile/avatar-uploader"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 type ProfilePageContentProps = {
   user: {
@@ -82,10 +82,25 @@ export default function ProfilePageContent({ user }: ProfilePageContentProps) {
 
       <Dialog open={avatarModalOpen} onOpenChange={setAvatarModalOpen}>
         <DialogContent>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogClose>
           <DialogHeader>
             <DialogTitle>Update avatar</DialogTitle>
           </DialogHeader>
-          <AvatarUploader initialAvatarUrl={user.avatarUrl ?? null} username={user.username} />
+          <AvatarUploader
+            initialAvatarUrl={user.avatarUrl ?? null}
+            username={user.username}
+            onUploadComplete={() => setAvatarModalOpen(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

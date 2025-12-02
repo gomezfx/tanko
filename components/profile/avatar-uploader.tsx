@@ -65,9 +65,10 @@ async function getCroppedBlob(imageSrc: string, croppedAreaPixels: Area) {
 type AvatarUploaderProps = {
   initialAvatarUrl?: string | null
   username: string
+  onUploadComplete?: () => void
 }
 
-export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUploaderProps) {
+export default function AvatarUploader({ initialAvatarUrl, username, onUploadComplete }: AvatarUploaderProps) {
   const { user, refresh, setUser } = useCurrentUser()
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl ?? user?.avatarUrl ?? null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -247,6 +248,7 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
       setAvatarUrl(body.avatarUrl)
       setUser((current) => (current ? { ...current, avatarUrl: body.avatarUrl } : current))
       await refresh()
+      onUploadComplete?.()
       handleCancel()
     } catch (err) {
       console.error(err)
