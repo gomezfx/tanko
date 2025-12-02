@@ -125,7 +125,7 @@ const DropdownMenuContent = React.forwardRef<HTMLDivElement, React.HTMLAttribute
             }
           }}
           className={cn(
-            "absolute right-0 mt-2 min-w-[12rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+            "absolute right-0 mt-2 min-w-[12rem] rounded-md border bg-popover text-popover-foreground shadow-md",
             className,
           )}
           {...props}
@@ -148,7 +148,7 @@ const DropdownMenuItem = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAtt
         ref={ref}
         type="button"
         className={cn(
-          "flex w-full items-center justify-start rounded-sm px-3 py-2 text-sm text-left hover:bg-muted",
+          "flex w-full items-center justify-start px-3 py-2 text-sm text-left hover:bg-muted",
           className,
         )}
         onClick={(event) => {

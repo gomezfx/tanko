@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
+import { LogOut, Settings as SettingsIcon, ShieldCheck, User } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -137,27 +138,55 @@ export function Navbar() {
           )}
           {user && (
             <DropdownMenu>
-            <DropdownMenuTrigger className="outline-none cursor-pointer">
+              <DropdownMenuTrigger className="outline-none cursor-pointer">
                 <Avatar className="h-16 w-16">
-                  {user.avatarUrl ? (
-                    <AvatarImage src={user.avatarUrl} alt={user.username} />
-                  ) : null}
+                  {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.username} /> : null}
                   <AvatarFallback className="bg-primary/10 text-primary">
                     {user.username.slice(0, 1).toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => (window.location.href = "/profile")}>
-                  <span className="font-semibold">{user.username}</span>
+                <DropdownMenuItem
+                  className="cursor-pointer border-b border-border last:border-0 px-0"
+                  onClick={() => (window.location.href = `/users/${user.username}`)}
+                >
+                  <div className="flex w-full items-center px-3">
+                    <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <div className="leading-tight">
+                      <span className="font-semibold block">{user.username}</span>
+                      <span className="text-xs text-muted-foreground">View profile</span>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer border-b border-border last:border-0 px-0"
+                  onClick={() => (window.location.href = "/settings")}
+                >
+                  <div className="flex w-full items-center px-3">
+                    <SettingsIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>Settings</span>
+                  </div>
                 </DropdownMenuItem>
                 {user.role === "admin" && (
-                  <DropdownMenuItem className="cursor-pointer" onClick={() => (window.location.href = "/admin")}>
-                    Admin
+                  <DropdownMenuItem
+                    className="cursor-pointer border-b border-border last:border-0 px-0"
+                    onClick={() => (window.location.href = "/admin")}
+                  >
+                    <div className="flex w-full items-center px-3">
+                      <ShieldCheck className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span>Admin</span>
+                    </div>
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
-                  Log out
+                <DropdownMenuItem
+                  className="cursor-pointer border-b border-border last:border-0 px-0"
+                  onClick={handleLogout}
+                >
+                  <div className="flex w-full items-center px-3">
+                    <LogOut className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>Log out</span>
+                  </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

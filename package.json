@@ -20,7 +20,7 @@
     "next": "16.0.6",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-easy-crop": "file:vendor/react-easy-crop",
+    "react-easy-crop": "^5.0.6",
     "sharp": "^0.34.5",
     "tailwind-merge": "^3.4.0"
   },

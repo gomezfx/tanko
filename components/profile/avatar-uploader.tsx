@@ -1,16 +1,17 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import type { ChangeEventHandler } from "react"
-import Cropper, { type Area } from "react-easy-crop"
+import NextImage from "next/image"
+import { useCallback, useEffect, useRef, useState, type ChangeEventHandler } from "react"
+import Cropper from "react-easy-crop"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { useCurrentUser } from "@/hooks/use-current-user"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
+const MIN_DIMENSION = 128
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
+const MIN_ZOOM = 1
+const MAX_ZOOM = 6
 
 async function createImage(url: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -31,8 +32,8 @@ async function getCroppedBlob(imageSrc: string, croppedAreaPixels: Area) {
     throw new Error("Unable to prepare canvas context.")
   }
 
-  canvas.width = 512
-  canvas.height = 512
+  canvas.width = croppedAreaPixels.width
+  canvas.height = croppedAreaPixels.height
 
   ctx.drawImage(
     image,
@@ -42,8 +43,8 @@ async function getCroppedBlob(imageSrc: string, croppedAreaPixels: Area) {
     croppedAreaPixels.height,
     0,
     0,
-    canvas.width,
-    canvas.height,
+    croppedAreaPixels.width,
+    croppedAreaPixels.height,
   )
 
   return new Promise<Blob>((resolve, reject) => {
@@ -56,7 +57,7 @@ async function getCroppedBlob(imageSrc: string, croppedAreaPixels: Area) {
         resolve(blob)
       },
       "image/jpeg",
-      0.9,
+      0.95,
     )
   })
 }
@@ -68,86 +69,149 @@ type AvatarUploaderProps = {
 
 export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUploaderProps) {
   const { user, refresh, setUser } = useCurrentUser()
-  const [previewUrl, setPreviewUrl] = useState<string | null>(initialAvatarUrl ?? user?.avatarUrl ?? null)
-  const [fileUrl, setFileUrl] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl ?? user?.avatarUrl ?? null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [crop, setCrop] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1)
-  const [cropSize, setCropSize] = useState(320)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(MIN_ZOOM)
+  const [showCropper, setShowCropper] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const cropContainerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    setPreviewUrl(user?.avatarUrl ?? initialAvatarUrl ?? null)
+    setAvatarUrl(user?.avatarUrl ?? initialAvatarUrl ?? null)
   }, [initialAvatarUrl, user?.avatarUrl])
 
   useEffect(() => {
     return () => {
-      if (fileUrl) {
-        URL.revokeObjectURL(fileUrl)
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
       }
     }
-  }, [fileUrl])
+  }, [previewUrl])
 
   useEffect(() => {
-    const updateCropSize = () => {
-      const containerWidth = cropContainerRef.current?.clientWidth ?? 320
-      setCropSize(containerWidth)
+    return () => {
+      if (previewImageUrl) {
+        URL.revokeObjectURL(previewImageUrl)
+      }
+    }
+  }, [previewImageUrl])
+
+  useEffect(() => {
+    if (!previewUrl || !croppedAreaPixels) {
+      setPreviewImageUrl(null)
+      return
     }
 
-    updateCropSize()
-    window.addEventListener("resize", updateCropSize)
+    let canceled = false
+
+    const generatePreview = async () => {
+      try {
+        const blob = await getCroppedBlob(previewUrl, croppedAreaPixels)
+        if (canceled) return
+        const url = URL.createObjectURL(blob)
+        setPreviewImageUrl((current) => {
+          if (current) {
+            URL.revokeObjectURL(current)
+          }
+          return url
+        })
+      } catch (err) {
+        console.error("Error generating preview", err)
+      }
+    }
+
+    generatePreview()
 
     return () => {
-      window.removeEventListener("resize", updateCropSize)
+      canceled = true
     }
-  }, [])
+  }, [previewUrl, croppedAreaPixels])
 
   const onCropComplete = useCallback((_croppedArea: Area, areaPixels: Area) => {
     setCroppedAreaPixels(areaPixels)
   }, [])
 
-  const handleFileChange: ChangeEventHandler<HTMLInputElement> = (event) => {
-    const file = event.target.files?.[0]
-
-    if (!file) {
-      return
-    }
+  const validateImage = async (file: File) => {
+    setValidationError(null)
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError("Please choose a JPG, PNG, or WEBP image.")
-      event.target.value = ""
-      return
+      setValidationError("Please select a JPEG, PNG, or WebP image.")
+      return false
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setError("Please choose an image up to 5 MB in size.")
+      setValidationError("File size must be less than 5 MB.")
+      return false
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const url = URL.createObjectURL(file)
+      const img = new Image()
+      img.onload = () => {
+        const valid = img.width >= MIN_DIMENSION && img.height >= MIN_DIMENSION
+        if (!valid) {
+          setValidationError("Image must be at least 128x128 pixels.")
+        }
+        URL.revokeObjectURL(url)
+        resolve(valid)
+      }
+      img.onerror = () => {
+        setValidationError("Invalid image file.")
+        URL.revokeObjectURL(url)
+        resolve(false)
+      }
+      img.src = url
+    })
+  }
+
+  const handleFileChange: ChangeEventHandler<HTMLInputElement> = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const isValid = await validateImage(file)
+    if (!isValid) {
+      setSelectedFile(null)
+      setPreviewUrl(null)
+      setPreviewImageUrl(null)
+      setShowCropper(false)
+      setCroppedAreaPixels(null)
+      setCrop({ x: 0, y: 0 })
+      setZoom(1)
       event.target.value = ""
       return
     }
 
-    setError(null)
-
-    if (fileUrl) {
-      URL.revokeObjectURL(fileUrl)
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
     }
 
     const objectUrl = URL.createObjectURL(file)
-    setFileUrl(objectUrl)
     setSelectedFile(file)
-    setZoom(1)
+    setPreviewUrl(objectUrl)
+    setShowCropper(true)
     setCrop({ x: 0, y: 0 })
+    setZoom(MIN_ZOOM)
+    setCroppedAreaPixels(null)
+    setPreviewImageUrl(null)
+    setError(null)
+    setValidationError(null)
   }
 
   const handleCancel = () => {
+    setShowCropper(false)
     setSelectedFile(null)
-    setFileUrl(null)
+    setPreviewUrl(null)
+    setPreviewImageUrl(null)
     setCroppedAreaPixels(null)
+    setValidationError(null)
     setError(null)
-    setZoom(1)
+    setZoom(MIN_ZOOM)
     setCrop({ x: 0, y: 0 })
 
     if (fileInputRef.current) {
@@ -156,16 +220,16 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
   }
 
   const handleSave = async () => {
-    if (!fileUrl || !selectedFile || !croppedAreaPixels) {
+    if (!previewUrl || !croppedAreaPixels) {
       setError("Select and crop an image first.")
       return
     }
 
-    setSaving(true)
+    setIsProcessing(true)
     setError(null)
 
     try {
-      const blob = await getCroppedBlob(fileUrl, croppedAreaPixels)
+      const blob = await getCroppedBlob(previewUrl, croppedAreaPixels)
       const formData = new FormData()
       formData.append("avatar", blob, "avatar.jpg")
 
@@ -180,7 +244,7 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
         throw new Error(body.message || "Unable to save avatar.")
       }
 
-      setPreviewUrl(body.avatarUrl)
+      setAvatarUrl(body.avatarUrl)
       setUser((current) => (current ? { ...current, avatarUrl: body.avatarUrl } : current))
       await refresh()
       handleCancel()
@@ -188,91 +252,118 @@ export default function AvatarUploader({ initialAvatarUrl, username }: AvatarUpl
       console.error(err)
       setError(err instanceof Error ? err.message : "Unable to save avatar.")
     } finally {
-      setSaving(false)
+      setIsProcessing(false)
     }
   }
 
+  const displayAvatar = avatarUrl
+  const fallbackLetter = username.slice(0, 1).toUpperCase()
+
   return (
-    <div className="space-y-4 rounded-md border p-4">
-      <div className="flex items-center gap-3">
-        <Avatar className="h-16 w-16">
-          {previewUrl ? <AvatarImage src={previewUrl} alt={username} /> : null}
-          <AvatarFallback>{username.slice(0, 1).toUpperCase()}</AvatarFallback>
-        </Avatar>
-        <div className="space-y-1 text-sm">
-          <p className="font-medium">Update avatar</p>
-          <p className="text-muted-foreground">Upload and crop a square image.</p>
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="relative h-16 w-16 overflow-hidden rounded-full bg-muted text-lg font-semibold text-muted-foreground">
+            {displayAvatar ? (
+              <NextImage src={displayAvatar} alt={username} fill sizes="64px" className="object-cover" unoptimized />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">{fallbackLetter}</div>
+            )}
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">Profile Avatar</p>
+            <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP • Max 5MB • Min 128×128px</p>
+          </div>
         </div>
+        {(previewUrl || avatarUrl) && (
+          <Button variant="link" type="button" onClick={handleCancel} className="px-0 text-destructive hover:text-destructive/80">
+            Remove
+          </Button>
+        )}
       </div>
 
       <div className="space-y-2">
-        <Input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          aria-label="Choose new avatar"
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        <div className="flex items-center gap-3">
+          <Button type="button" onClick={() => fileInputRef.current?.click()}>
+            Choose File
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".jpeg,.jpg,.png,.webp"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-label="Choose new avatar"
+          />
+          <p className="text-sm text-foreground/80">{selectedFile?.name ?? "No file chosen"}</p>
+        </div>
       </div>
 
-      {fileUrl && (
-        <div className="space-y-3">
-          <div
-            ref={cropContainerRef}
-            className="relative aspect-square w-full max-w-2xl overflow-hidden rounded-md border bg-muted"
-          >
-            <Cropper
-              image={fileUrl}
-              crop={crop}
-              zoom={zoom}
-              aspect={1}
-              cropShape="rect"
-              cropSize={{ width: cropSize, height: cropSize }}
-              showGrid
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-              restrictPosition
-            />
-            <div className="pointer-events-none absolute inset-0 rounded-md" aria-hidden="true">
-              <div
-                className="absolute inset-0 rounded-md"
-                style={{
-                  background: "radial-gradient(circle at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.55) 60%)",
-                }}
+      {validationError && (
+        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+          {validationError}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+      )}
+
+      {showCropper && previewUrl && (
+        <div className="space-y-4">
+          <div className="rounded-lg border bg-card p-4 shadow-sm">
+            <h3 className="mb-3 text-sm font-medium text-foreground/80">Crop your image (square aspect ratio)</h3>
+            <div className="relative h-64 w-full overflow-hidden rounded-lg border bg-muted">
+              <Cropper
+                image={previewUrl}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                showGrid
+                minZoom={MIN_ZOOM}
+                maxZoom={MAX_ZOOM}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
               />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div
-                  className="rounded-full border border-white/80 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]"
-                  style={{ width: "75%", height: "75%" }}
-                />
-              </div>
+            </div>
+            <div className="mt-4 space-y-2">
+              <label className="text-xs text-muted-foreground">Zoom</label>
+              <input
+                type="range"
+                min={MIN_ZOOM}
+                max={MAX_ZOOM}
+                step={0.1}
+                value={zoom}
+                onChange={(event) => setZoom(Number(event.target.value))}
+                className="w-full accent-primary"
+                aria-label="Zoom"
+              />
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Zoom</span>
-            <input
-              type="range"
-              min={1}
-              max={3}
-              step={0.1}
-              value={zoom}
-              onChange={(event) => setZoom(Number(event.target.value))}
-              className="w-full"
-              aria-label="Zoom"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button variant="outline" type="button" onClick={handleCancel} disabled={saving}>
+            <Button type="button" onClick={handleSave} disabled={isProcessing || !croppedAreaPixels}>
+              {isProcessing ? "Processing..." : "Upload Avatar"}
+            </Button>
+            <Button variant="outline" type="button" onClick={handleCancel} disabled={isProcessing}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save avatar"}
-            </Button>
           </div>
+
+          {previewImageUrl && (
+            <div className="rounded-md border border-primary/30 bg-primary/10 p-4">
+              <h4 className="mb-2 text-sm font-medium text-primary">Preview</h4>
+              <div className="flex items-center gap-3">
+                <div className="relative h-12 w-12 overflow-hidden rounded-full bg-muted">
+                  <NextImage src={previewImageUrl} alt="Avatar preview" fill sizes="48px" className="object-cover" unoptimized />
+                </div>
+                <p className="text-xs text-primary">
+                  This is how your avatar will appear (circular display, square storage)
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

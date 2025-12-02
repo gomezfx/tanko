@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
         // Allow optimized images served from the thumbnail API (including dynamic id route)
         pathname: "/api/thumbnail/**",
       },
+      {
+        // Allow user-uploaded avatars from the public/avatars directory
+        pathname: "/avatars/**",
+      },
     ],
   },
 };
