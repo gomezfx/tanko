@@ -16,5 +16,6 @@ export async function GET(request: NextRequest) {
     username: user.username,
     role: user.role,
     avatarUrl: user.avatarUrl ?? null,
+    headerUrl: user.headerUrl ?? null,
   })
 }

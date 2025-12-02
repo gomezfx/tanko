@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     username: user.username,
     role: user.role,
     avatarUrl: user.avatarUrl ?? null,
+    headerUrl: user.headerUrl ?? null,
   })
 
   attachSessionCookie(response, token, expiresAt)

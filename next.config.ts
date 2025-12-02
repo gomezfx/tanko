@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
         // Allow user-uploaded avatars from the public/avatars directory
         pathname: "/avatars/**",
       },
+      {
+        // Allow user-uploaded profile headers from the public/headers directory
+        pathname: "/headers/**",
+      },
     ],
   },
 };

@@ -7,6 +7,7 @@ export type CurrentUser = {
   username: string
   role: string
   avatarUrl?: string | null
+  headerUrl?: string | null
 }
 
 export function useCurrentUser() {

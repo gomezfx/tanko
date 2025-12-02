@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button"
 import { useCurrentUser } from "@/hooks/use-current-user"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
-const MIN_DIMENSION = 128
+const MIN_DIMENSION = 640
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
-const MIN_ZOOM = 1
-const MAX_ZOOM = 6
+const HEADER_ASPECT_RATIO = 5
+const OUTPUT_WIDTH = 1600
+const OUTPUT_HEIGHT = 320
 
 async function createImage(url: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -32,8 +33,8 @@ async function getCroppedBlob(imageSrc: string, croppedAreaPixels: Area) {
     throw new Error("Unable to prepare canvas context.")
   }
 
-  canvas.width = croppedAreaPixels.width
-  canvas.height = croppedAreaPixels.height
+  canvas.width = OUTPUT_WIDTH
+  canvas.height = OUTPUT_HEIGHT
 
   ctx.drawImage(
     image,
@@ -43,15 +44,15 @@ async function getCroppedBlob(imageSrc: string, croppedAreaPixels: Area) {
     croppedAreaPixels.height,
     0,
     0,
-    croppedAreaPixels.width,
-    croppedAreaPixels.height,
+    OUTPUT_WIDTH,
+    OUTPUT_HEIGHT,
   )
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error("Failed to create avatar image."))
+          reject(new Error("Failed to create header image."))
           return
         }
         resolve(blob)
@@ -62,21 +63,20 @@ async function getCroppedBlob(imageSrc: string, croppedAreaPixels: Area) {
   })
 }
 
-type AvatarUploaderProps = {
-  initialAvatarUrl?: string | null
-  username: string
+type ProfileHeaderUploaderProps = {
+  initialHeaderUrl?: string | null
   onUploadComplete?: (url: string) => void
 }
 
-export default function AvatarUploader({ initialAvatarUrl, username, onUploadComplete }: AvatarUploaderProps) {
+export default function ProfileHeaderUploader({ initialHeaderUrl, onUploadComplete }: ProfileHeaderUploaderProps) {
   const { user, refresh, setUser } = useCurrentUser()
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl ?? user?.avatarUrl ?? null)
+  const [headerUrl, setHeaderUrl] = useState<string | null>(initialHeaderUrl ?? user?.headerUrl ?? null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(MIN_ZOOM)
+  const [zoom, setZoom] = useState(1)
   const [showCropper, setShowCropper] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -84,8 +84,8 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    setAvatarUrl(user?.avatarUrl ?? initialAvatarUrl ?? null)
-  }, [initialAvatarUrl, user?.avatarUrl])
+    setHeaderUrl(user?.headerUrl ?? initialHeaderUrl ?? null)
+  }, [initialHeaderUrl, user?.headerUrl])
 
   useEffect(() => {
     return () => {
@@ -123,7 +123,7 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
           return url
         })
       } catch (err) {
-        console.error("Error generating preview", err)
+        console.error("Error generating header preview", err)
       }
     }
 
@@ -155,9 +155,9 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
       const url = URL.createObjectURL(file)
       const img = new Image()
       img.onload = () => {
-        const valid = img.width >= MIN_DIMENSION && img.height >= MIN_DIMENSION
+        const valid = img.width >= MIN_DIMENSION && img.height >= MIN_DIMENSION / HEADER_ASPECT_RATIO
         if (!valid) {
-          setValidationError("Image must be at least 128x128 pixels.")
+          setValidationError("Image must be at least 640px wide.")
         }
         URL.revokeObjectURL(url)
         resolve(valid)
@@ -197,7 +197,7 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
     setPreviewUrl(objectUrl)
     setShowCropper(true)
     setCrop({ x: 0, y: 0 })
-    setZoom(MIN_ZOOM)
+    setZoom(1)
     setCroppedAreaPixels(null)
     setPreviewImageUrl(null)
     setError(null)
@@ -212,7 +212,7 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
     setCroppedAreaPixels(null)
     setValidationError(null)
     setError(null)
-    setZoom(MIN_ZOOM)
+    setZoom(1)
     setCrop({ x: 0, y: 0 })
 
     if (fileInputRef.current) {
@@ -232,53 +232,55 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
     try {
       const blob = await getCroppedBlob(previewUrl, croppedAreaPixels)
       const formData = new FormData()
-      formData.append("avatar", blob, "avatar.jpg")
+      formData.append("header", blob, "header.jpg")
 
-      const response = await fetch("/api/profile/avatar", {
+      const response = await fetch("/api/profile/header", {
         method: "POST",
         body: formData,
       })
 
-      const body = (await response.json().catch(() => ({}))) as { avatarUrl?: string; message?: string }
+      const body = (await response.json().catch(() => ({}))) as { headerUrl?: string; message?: string }
 
-      if (!response.ok || !body.avatarUrl) {
-        throw new Error(body.message || "Unable to save avatar.")
+      if (!response.ok || !body.headerUrl) {
+        throw new Error(body.message || "Unable to save header.")
       }
 
-      setAvatarUrl(body.avatarUrl)
-      setUser((current) => (current ? { ...current, avatarUrl: body.avatarUrl } : current))
+      setHeaderUrl(body.headerUrl)
+      setUser((current) => (current ? { ...current, headerUrl: body.headerUrl } : current))
       await refresh()
-      onUploadComplete?.(body.avatarUrl)
+      onUploadComplete?.(body.headerUrl)
       handleCancel()
     } catch (err) {
       console.error(err)
-      setError(err instanceof Error ? err.message : "Unable to save avatar.")
+      setError(err instanceof Error ? err.message : "Unable to save header.")
     } finally {
       setIsProcessing(false)
     }
   }
 
-  const displayAvatar = avatarUrl
-  const fallbackLetter = username.slice(0, 1).toUpperCase()
+  const displayHeader = headerUrl
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="relative h-16 w-16 overflow-hidden rounded-full bg-muted text-lg font-semibold text-muted-foreground">
-            {displayAvatar ? (
-              <NextImage src={displayAvatar} alt={username} fill sizes="64px" className="object-cover" unoptimized />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center">{fallbackLetter}</div>
-            )}
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">Profile Avatar</p>
-            <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP • Max 5MB • Min 128×128px</p>
-          </div>
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-foreground">Profile Header</p>
+        <p className="text-xs text-muted-foreground">
+          Wide images work best. JPEG, PNG, or WebP • Max 5MB • Cropped to a wide banner.
+        </p>
+        <div className="relative h-24 w-full overflow-hidden rounded-md border bg-muted">
+          {displayHeader ? (
+            <NextImage src={displayHeader} alt="Header preview" fill className="object-cover" sizes="600px" priority={false} />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">No header image</div>
+          )}
         </div>
-        {(previewUrl || avatarUrl) && (
-          <Button variant="link" type="button" onClick={handleCancel} className="px-0 text-destructive hover:text-destructive/80">
+        {(previewUrl || headerUrl) && (
+          <Button
+            variant="link"
+            type="button"
+            onClick={handleCancel}
+            className="px-0 text-destructive hover:text-destructive/80"
+          >
             Remove
           </Button>
         )}
@@ -295,35 +297,31 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
             accept=".jpeg,.jpg,.png,.webp"
             onChange={handleFileChange}
             className="hidden"
-            aria-label="Choose new avatar"
+            aria-label="Choose new header image"
           />
           <p className="text-sm text-foreground/80">{selectedFile?.name ?? "No file chosen"}</p>
         </div>
       </div>
 
       {validationError && (
-        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {validationError}
-        </div>
+        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{validationError}</div>
       )}
 
-      {error && (
-        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
-      )}
+      {error && <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       {showCropper && previewUrl && (
         <div className="space-y-4">
           <div className="rounded-lg border bg-card p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-medium text-foreground/80">Crop your image (square aspect ratio)</h3>
-            <div className="relative h-64 w-full overflow-hidden rounded-lg border bg-muted">
+            <h3 className="mb-3 text-sm font-medium text-foreground/80">Crop your header (wide aspect ratio)</h3>
+            <div className="relative h-48 w-full overflow-hidden rounded-lg border bg-muted">
               <Cropper
                 image={previewUrl}
                 crop={crop}
                 zoom={zoom}
-                aspect={1}
+                aspect={HEADER_ASPECT_RATIO}
                 showGrid
-                minZoom={MIN_ZOOM}
-                maxZoom={MAX_ZOOM}
+                minZoom={1}
+                maxZoom={6}
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
@@ -333,8 +331,8 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
               <label className="text-xs text-muted-foreground">Zoom</label>
               <input
                 type="range"
-                min={MIN_ZOOM}
-                max={MAX_ZOOM}
+                min={1}
+                max={6}
                 step={0.1}
                 value={zoom}
                 onChange={(event) => setZoom(Number(event.target.value))}
@@ -346,7 +344,7 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
 
           <div className="flex items-center gap-3">
             <Button type="button" onClick={handleSave} disabled={isProcessing || !croppedAreaPixels}>
-              {isProcessing ? "Processing..." : "Upload Avatar"}
+              {isProcessing ? "Processing..." : "Upload Header"}
             </Button>
             <Button variant="outline" type="button" onClick={handleCancel} disabled={isProcessing}>
               Cancel
@@ -356,13 +354,8 @@ export default function AvatarUploader({ initialAvatarUrl, username, onUploadCom
           {previewImageUrl && (
             <div className="rounded-md border border-primary/30 bg-primary/10 p-4">
               <h4 className="mb-2 text-sm font-medium text-primary">Preview</h4>
-              <div className="flex items-center gap-3">
-                <div className="relative h-12 w-12 overflow-hidden rounded-full bg-muted">
-                  <NextImage src={previewImageUrl} alt="Avatar preview" fill sizes="48px" className="object-cover" unoptimized />
-                </div>
-                <p className="text-xs text-primary">
-                  This is how your avatar will appear (circular display, square storage)
-                </p>
+              <div className="relative h-20 w-full overflow-hidden rounded-md border">
+                <NextImage src={previewImageUrl} alt="Header preview" fill className="object-cover" sizes="600px" unoptimized />
               </div>
             </div>
           )}
