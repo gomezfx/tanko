@@ -20,7 +20,7 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="relative rounded-xl border bg-card shadow-sm pb-20">
+      <div className="relative rounded-xl border bg-card shadow-sm">
         <div className="relative h-48 overflow-hidden rounded-t-xl bg-muted">
           <NextImage
             src="/header-placeholder.svg"
