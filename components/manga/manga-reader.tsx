@@ -78,11 +78,11 @@ export default function MangaReader({ volumeId, title, pageCount }: MangaReaderP
               </div>
             </div>
 
-            <div className="relative flex-1 bg-black">
+            <div className="relative flex-1 bg-black overflow-hidden">
               <img
                 src={imageSrc}
                 alt={`Page ${pageIndex + 1}`}
-                className="mx-auto h-full max-h-full w-auto max-w-full object-contain select-none"
+                className="mx-auto h-full max-h-full w-auto max-w-[min(90vw,1200px)] object-contain select-none"
                 draggable={false}
               />
 
