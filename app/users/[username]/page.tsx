@@ -1,3 +1,4 @@
+import NextImage from "next/image"
 import { redirect } from "next/navigation"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -15,34 +16,49 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
     redirect("/")
   }
 
-  return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Profile</h1>
-        <p className="text-muted-foreground">Manage your Tanko account.</p>
-      </div>
+  const fallbackLetter = user.username.slice(0, 1).toUpperCase()
 
-      <div className="grid gap-8 md:grid-cols-[auto,1fr]">
-        <div className="flex flex-col items-center gap-3">
-          <Avatar className="h-32 w-32">
-            {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.username} /> : null}
-            <AvatarFallback className="text-lg font-semibold">
-              {user.username.slice(0, 1).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <p className="text-sm text-muted-foreground">Current avatar</p>
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="relative rounded-xl border bg-card shadow-sm pb-20">
+        <div className="relative h-48 overflow-hidden rounded-t-xl bg-muted">
+          <NextImage
+            src="/header-placeholder.svg"
+            alt="Profile header"
+            fill
+            className="object-cover"
+            style={{ objectFit: "cover" }}
+            sizes="(min-width: 768px) 1000px, 100vw"
+            priority
+          />
+          <div className="absolute inset-x-6 top-4 flex items-center justify-between">
+            <div className="drop-shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Profile</p>
+              <h1 className="text-2xl font-semibold text-foreground">{user.username}</h1>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-md border p-4">
-            <h2 className="text-lg font-medium">Avatar best practices</h2>
-            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-              <li>Allowed types: JPG, PNG, WEBP</li>
-              <li>Recommended size: At least 512×512 pixels, square image works best</li>
-              <li>Max file size: Up to 5 MB</li>
-            </ul>
+        <div className="absolute bottom-0 left-6 flex translate-y-1/2 items-end gap-4">
+          <div className="relative h-32 w-32">
+            <Avatar className="h-32 w-32 border-4 border-background shadow-lg">
+              {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.username} /> : null}
+              <AvatarFallback className="text-lg font-semibold">{fallbackLetter}</AvatarFallback>
+            </Avatar>
           </div>
+          <div className="pb-3">
+            <p className="text-sm text-muted-foreground">Public profile</p>
+            <p className="text-sm text-foreground/80">Avatar appears across Tanko.</p>
+          </div>
+        </div>
+      </div>
 
+      <div className="mt-20 grid gap-8 md:grid-cols-[1fr,1.1fr]">
+        <div className="space-y-4 rounded-md border p-4 md:col-start-2">
+          <div>
+            <h2 className="text-lg font-medium">Update avatar</h2>
+            <p className="text-sm text-muted-foreground">Use a clear image; updates appear across Tanko.</p>
+          </div>
           <AvatarUploader initialAvatarUrl={user.avatarUrl ?? null} username={user.username} />
         </div>
       </div>
