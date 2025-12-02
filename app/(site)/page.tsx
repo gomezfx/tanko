@@ -1,4 +1,5 @@
 import Image from "next/image"
+import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { Card } from "@/components/ui/card"
@@ -29,29 +30,31 @@ export default async function HomePage() {
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {volumes.map((volume) => (
-              <Card key={volume.id} className="overflow-hidden">
-                <div className="relative aspect-[2/3] w-full bg-muted">
-                  {volume.thumbnailPath ? (
-                    <Image
-                      src={`/api/thumbnail/${volume.id}`}
-                      alt={volume.title}
-                      fill
-                      className="object-cover"
-                      sizes="(min-width: 1280px) 200px, (min-width: 768px) 160px, 50vw"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                      No thumbnail
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1 p-3">
-                  <h3 className="line-clamp-2 text-sm font-medium leading-tight">{volume.title}</h3>
-                  {volume.author && (
-                    <p className="line-clamp-1 text-xs text-muted-foreground">{volume.author}</p>
-                  )}
-                </div>
-              </Card>
+              <Link key={volume.id} href={`/manga/${volume.id}`} className="group">
+                <Card className="overflow-hidden transition hover:-translate-y-1 hover:shadow-md">
+                  <div className="relative aspect-[2/3] w-full bg-muted">
+                    {volume.thumbnailPath ? (
+                      <Image
+                        src={`/api/thumbnail/${volume.id}`}
+                        alt={volume.title}
+                        fill
+                        className="object-cover transition group-hover:scale-[1.02]"
+                        sizes="(min-width: 1280px) 200px, (min-width: 768px) 160px, 50vw"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                        No thumbnail
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1 p-3">
+                    <h3 className="line-clamp-2 text-sm font-medium leading-tight">{volume.title}</h3>
+                    {volume.author && (
+                      <p className="line-clamp-1 text-xs text-muted-foreground">{volume.author}</p>
+                    )}
+                  </div>
+                </Card>
+              </Link>
             ))}
           </div>
         )}
