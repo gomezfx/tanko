@@ -82,7 +82,7 @@ export default function MangaReader({ volumeId, title, pageCount }: MangaReaderP
               <img
                 src={imageSrc}
                 alt={`Page ${pageIndex + 1}`}
-                className="mx-auto h-[100vh] max-h-screen w-auto max-w-full object-contain select-none"
+                className="mx-auto h-full max-h-full w-auto max-w-full object-contain select-none"
                 draggable={false}
               />
 
