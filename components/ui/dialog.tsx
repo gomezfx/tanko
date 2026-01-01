@@ -128,15 +128,20 @@ const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 )
 DialogFooter.displayName = "DialogFooter"
 
-type DialogCloseProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type DialogCloseProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> & {
+  onClick?: React.MouseEventHandler<HTMLElement>
   asChild?: boolean
+}
+
+type DialogCloseChildProps = {
+  onClick?: React.MouseEventHandler<HTMLElement>
 }
 
 const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(
   ({ children, asChild = false, ...props }, ref) => {
     const { onOpenChange } = useDialogContext()
 
-    if (asChild && React.isValidElement(children)) {
+    if (asChild && React.isValidElement<DialogCloseChildProps>(children)) {
       return React.cloneElement(children, {
         onClick: (event: React.MouseEvent<HTMLElement>) => {
           if (typeof children.props.onClick === "function") {
